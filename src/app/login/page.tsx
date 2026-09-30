@@ -18,8 +18,8 @@ export default function LoginPage() {
   const [state, formAction, isPending] = useActionState(login, null);
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-muted/30 p-4">
-      <Card className="w-full max-w-md shadow-lg">
+    <div className="flex min-h-[70vh] items-center justify-center p-4">
+      <Card className="w-full max-w-md shadow-lg border-0 sm:border">
         <CardHeader className="text-center space-y-2">
           <div className="flex justify-center mb-2">
             <div className="rounded-full bg-primary/10 p-4">

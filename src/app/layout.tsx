@@ -1,9 +1,10 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import { AppBar } from "@/components/AppBar";
 import "./globals.css";
 
 const geistSans = Geist({
-  variable: "--font-sans",
+  variable: "--font-geist-sans",
   subsets: ["latin"],
 });
 
@@ -17,13 +18,19 @@ export const metadata: Metadata = {
   description: "Personal job board aggregator",
 };
 
-export default function RootLayout({ children }: LayoutProps<"/">) {
+export default function RootLayout({
+  children,
+}: Readonly<{
+  children: React.ReactNode;
+}>) {
   return (
-    <html
-      lang="en"
-      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
-    >
-      <body className="min-h-full flex flex-col">{children}</body>
+    <html lang="en" className={`${geistSans.variable} ${geistMono.variable}`}>
+      <body
+        className="antialiased min-h-screen flex flex-col font-sans"
+      >
+        <AppBar />
+        <main className="flex-1 container mx-auto px-4 py-8">{children}</main>
+      </body>
     </html>
   );
 }
