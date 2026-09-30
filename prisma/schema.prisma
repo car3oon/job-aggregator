@@ -12,10 +12,17 @@ model Job {
   title       String
   description String   @db.Text
   url         String   @unique
-  source      String   
-  workMode    String   
+  source      String
+  workMode    String
   location    String?
   tags        String[]
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+}
+
+model Category {
+  id   String  @id @default(uuid())
+  name String  @unique
+  slug String  @unique
+  icon String?
 }
