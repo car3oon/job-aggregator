@@ -42,4 +42,5 @@ next-env.d.ts
 
 # project plan
 plan.md
-plan-md
+
+/src/generated/prisma
