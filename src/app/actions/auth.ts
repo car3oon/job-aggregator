@@ -20,11 +20,17 @@ export async function login(prevState: any, formData: FormData) {
       maxAge: 60 * 60 * 24 * 30, // 30 days
       path: "/",
     });
-    
+
     // Redirect to the home page
     redirect("/");
   } else {
     // Incorrect password
     return { error: "Incorrect password. Please try again." };
   }
+}
+
+export async function logout() {
+  const cookieStore = await cookies();
+  cookieStore.delete("job_auth");
+  redirect("/login");
 }
