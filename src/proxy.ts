@@ -3,14 +3,17 @@ import type { NextRequest } from 'next/server'
 
 export function proxy(request: NextRequest) {
   const authCookie = request.cookies.get('job_auth')
-  const isLoginPage = request.nextUrl.pathname.startsWith('/login')
+  const { pathname } = request.nextUrl
+  
+  const isLoginPage = pathname.startsWith('/login')
+  const isHomePage = pathname === '/'
 
-  // Protection: No cookie = redirect to login
-  if (!authCookie && !isLoginPage) {
+  // Protection: No cookie = redirect to login, EXCEPT for login page and home page
+  if (!authCookie && !isLoginPage && !isHomePage) {
     return NextResponse.redirect(new URL('/login', request.url))
   }
 
-  // User is authenticated, no need to visit the login page
+  // User is authenticated, redirect away from login page to dashboard
   if (authCookie && isLoginPage) {
     return NextResponse.redirect(new URL('/', request.url))
   }
