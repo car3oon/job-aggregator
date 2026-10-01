@@ -25,3 +25,11 @@ model Category {
   slug String  @unique
   icon String?
 }
+
+model ScraperUrl {
+  id        String   @id @default(uuid())
+  url       String   @unique
+  name      String?
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+}

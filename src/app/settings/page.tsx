@@ -1,23 +1,55 @@
+import { redirect } from "next/navigation";
+import { cookies } from "next/headers";
 import { prisma } from "@/lib/prisma";
 import { CategoriesManager } from "@/components/CategoriesManager";
+import { ScraperUrlsManager } from "@/components/ScraperUrlsManager";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 export default async function SettingsPage() {
+  const cookieStore = await cookies();
+  const token = cookieStore.get("job_auth");
+
+  if (!token) {
+    redirect("/login");
+  }
+
   const categories = await prisma.category.findMany({
     orderBy: { name: "asc" },
   });
 
+  const scraperUrls = await prisma.scraperUrl.findMany({
+    orderBy: { createdAt: "desc" },
+  });
+
   return (
-    <div className="max-w-2xl mx-auto py-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
-      <h1 className="text-3xl font-bold mb-8">Settings</h1>
-
-      <div className="bg-card border rounded-xl p-6 shadow-sm">
-        <h2 className="text-xl font-semibold mb-2">Job Categories</h2>
-        <p className="text-sm text-muted-foreground mb-6">
-          Add tags to seamlessly organize and filter your scraped job listings.
+    <div className="max-w-4xl mx-auto space-y-8">
+      <div>
+        <h1 className="text-3xl font-bold tracking-tight">Settings</h1>
+        <p className="text-muted-foreground mt-2">
+          Manage your job board preferences and scraper targets.
         </p>
-
-        <CategoriesManager initialCategories={categories} />
       </div>
+
+      <Tabs defaultValue="categories" className="w-full">
+        <TabsList className="mb-6 grid w-full max-w-md grid-cols-2">
+          <TabsTrigger value="categories">Categories</TabsTrigger>
+          <TabsTrigger value="scraper">Scraper URLs</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="categories" className="space-y-4">
+          <div className="bg-card text-card-foreground rounded-xl border shadow-sm p-6">
+            <h2 className="text-xl font-semibold mb-4">Categories</h2>
+            <CategoriesManager initialCategories={categories} />
+          </div>
+        </TabsContent>
+
+        <TabsContent value="scraper" className="space-y-4">
+          <div className="bg-card text-card-foreground rounded-xl border shadow-sm p-6">
+            <h2 className="text-xl font-semibold mb-4">Scraper Targets</h2>
+            <ScraperUrlsManager initialUrls={scraperUrls} />
+          </div>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }
