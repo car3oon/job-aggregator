@@ -3,31 +3,28 @@
 import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
 
-export async function addCategory(name: string) {
-  if (!name || name.trim() === "") {
-    return { error: "Category name cannot be empty." };
-  }
+export async function addCategory(name: string, keywordsStr: string = "", excludedStr: string = "") {
+  if (!name.trim()) return { error: "Name is required." };
 
-  const trimmedName = name.trim();
+  const slug = name.trim().toLowerCase().replace(/[^a-z0-9]+/g, "-");
 
-  // Generate a URL-friendly slug (e.g. "React Developer" -> "react-developer")
-  const slug = trimmedName
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/(^-|-$)+/g, "");
+  const keywords = keywordsStr.split(",").map(k => k.trim().toLowerCase()).filter(Boolean);
+  const excluded = excludedStr.split(",").map(k => k.trim().toLowerCase()).filter(Boolean);
 
   try {
     await prisma.category.create({
       data: {
-        name: trimmedName,
-        slug: slug,
+        name: name.trim(),
+        slug,
+        keywords,
+        excluded
       },
     });
 
     revalidatePath("/settings");
     return { success: true };
   } catch (error) {
-    return { error: "Category might already exist or an error occurred." };
+    return { error: "This category already exists or an error occurred." };
   }
 }
 

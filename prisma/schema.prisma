@@ -7,23 +7,39 @@ datasource db {
 }
 
 model Job {
-  id          String   @id @default(uuid())
-  title       String
-  description String   @db.Text
-  url         String   @unique
-  source      String
-  workMode    String
-  location    String?
-  tags        String[]
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id              String           @id @default(uuid())
+  title           String
+  url             String           @unique
+  source          String           // e.g., "JustJoinIT"
+  categories      Category[]       // Many-to-many relation
+  workPreferences WorkPreference[] // Many-to-many relation
+  workMode        String?          // Optional, if the adapter easily extracts it
+  location        String?          // Optional, if the adapter easily extracts it
+  description     String?          @db.Text // Optional full description/content
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  
+  scraperUrlId    String?
+  scraperUrl      ScraperUrl?      @relation(fields: [scraperUrlId], references: [id], onDelete: SetNull)
 }
 
 model Category {
-  id   String  @id @default(uuid())
-  name String  @unique
-  slug String  @unique
-  icon String?
+  id        String   @id @default(uuid())
+  name      String   @unique
+  slug      String   @unique
+  keywords  String[] // Words required for a match
+  excluded  String[] // Words that exclude an offer from this category
+  icon      String?
+  jobs      Job[]    // Many-to-many relation
+}
+
+model WorkPreference {
+  id        String   @id @default(uuid())
+  name      String   @unique
+  keywords  String[] // Keywords (e.g., ["remote", "hybrid", "home office"])
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  jobs      Job[]    // Many-to-many relation
 }
 
 model ScraperUrl {
@@ -32,4 +48,5 @@ model ScraperUrl {
   name      String?
   isActive  Boolean  @default(true)
   createdAt DateTime @default(now())
+  jobs      Job[]    // One-to-many relation
 }
