@@ -2,10 +2,10 @@
 
 import { useState, useTransition } from "react";
 import { type Category } from "@prisma/client";
-import { addCategory, deleteCategory } from "@/app/actions/category";
+import { addCategory, deleteCategory, updateCategory } from "@/app/actions/category";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { X, Loader2, Hash } from "lucide-react";
+import { Trash2, Loader2, Hash, Pencil, Check, Ban } from "lucide-react";
 import { toast } from "@/components/ui/toast";
 
 export function CategoriesManager({
@@ -18,6 +18,11 @@ export function CategoriesManager({
   const [excluded, setExcluded] = useState("");
   const [isPending, startTransition] = useTransition();
 
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editName, setEditName] = useState("");
+  const [editKeywords, setEditKeywords] = useState("");
+  const [editExcluded, setEditExcluded] = useState("");
+
   const handleAdd = () => {
     if (!name.trim()) return;
 
@@ -25,17 +30,9 @@ export function CategoriesManager({
       const result = await addCategory(name, keywords, excluded);
 
       if (result?.error) {
-        toast.add({
-          type: "error",
-          title: "Error",
-          description: result.error,
-        });
+        toast.add({ type: "error", title: "Error", description: result.error });
       } else {
-        toast.add({
-          type: "success",
-          title: "Success",
-          description: "Category added successfully!",
-        });
+        toast.add({ type: "success", title: "Success", description: "Category added successfully!" });
         setName("");
         setKeywords("");
         setExcluded("");
@@ -49,11 +46,28 @@ export function CategoriesManager({
       if (result?.error) {
         toast.add({ type: "error", title: "Error", description: result.error });
       } else {
-        toast.add({
-          type: "success",
-          title: "Success",
-          description: "Category deleted!",
-        });
+        toast.add({ type: "success", title: "Success", description: "Category deleted!" });
+      }
+    });
+  };
+
+  const handleEditInit = (cat: Category) => {
+    setEditingId(cat.id);
+    setEditName(cat.name);
+    setEditKeywords(cat.keywords.join(", "));
+    setEditExcluded(cat.excluded.join(", "));
+  };
+
+  const handleSaveEdit = (id: string) => {
+    if (!editName.trim()) return;
+    
+    startTransition(async () => {
+      const result = await updateCategory(id, editName, editKeywords, editExcluded);
+      if (result?.error) {
+        toast.add({ type: "error", title: "Error", description: result.error });
+      } else {
+        toast.add({ type: "success", title: "Success", description: "Category updated!" });
+        setEditingId(null);
       }
     });
   };
@@ -97,31 +111,57 @@ export function CategoriesManager({
         {initialCategories.map((cat) => (
           <div
             key={cat.id}
-            className="flex flex-col md:flex-row md:items-center justify-between p-4 rounded-lg border bg-card gap-2"
+            className="flex flex-col p-4 rounded-lg border bg-card gap-4"
           >
-            <div>
-              <div className="flex items-center gap-2 font-medium">
-                <Hash className="h-4 w-4 text-muted-foreground" />
-                {cat.name}
+            {editingId === cat.id ? (
+              <div className="flex flex-col gap-3">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                  <Input value={editName} onChange={(e) => setEditName(e.target.value)} disabled={isPending} placeholder="Name" />
+                  <Input value={editKeywords} onChange={(e) => setEditKeywords(e.target.value)} disabled={isPending} placeholder="Required Keywords" />
+                  <Input value={editExcluded} onChange={(e) => setEditExcluded(e.target.value)} disabled={isPending} placeholder="Excluded Keywords" />
+                </div>
+                <div className="flex justify-end gap-2">
+                  <Button variant="outline" size="sm" onClick={() => setEditingId(null)} disabled={isPending}>
+                    Cancel
+                  </Button>
+                  <Button size="sm" onClick={() => handleSaveEdit(cat.id)} disabled={isPending || !editName.trim()}>
+                    {isPending ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <Check className="h-4 w-4 mr-1" />} Save
+                  </Button>
+                </div>
               </div>
-              <div className="text-xs text-muted-foreground mt-1 flex gap-2">
-                {cat.keywords.length > 0 && (
-                  <span>✅ {cat.keywords.join(", ")}</span>
-                )}
-                {cat.excluded.length > 0 && (
-                  <span>❌ {cat.excluded.join(", ")}</span>
-                )}
-              </div>
-            </div>
+            ) : (
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-2">
+                <div>
+                  <div className="flex items-center gap-2 font-medium">
+                    <Hash className="h-4 w-4 text-muted-foreground" />
+                    {cat.name}
+                  </div>
+                  <div className="text-xs text-muted-foreground mt-1 flex flex-wrap gap-x-4 gap-y-1">
+                    {cat.keywords.length > 0 && (
+                      <span className="flex items-center gap-1">
+                        <Check className="h-3.5 w-3.5 text-emerald-500" />
+                        {cat.keywords.join(", ")}
+                      </span>
+                    )}
+                    {cat.excluded.length > 0 && (
+                      <span className="flex items-center gap-1">
+                        <Ban className="h-3.5 w-3.5 text-destructive/80" />
+                        {cat.excluded.join(", ")}
+                      </span>
+                    )}
+                  </div>
+                </div>
 
-            <Button
-              variant="destructive"
-              size="sm"
-              onClick={() => handleDelete(cat.id)}
-              disabled={isPending}
-            >
-              <X className="h-4 w-4 mr-1" /> Remove
-            </Button>
+                <div className="flex items-center gap-2 shrink-0">
+                  <Button variant="outline" size="sm" onClick={() => handleEditInit(cat)} disabled={isPending}>
+                    <Pencil className="h-4 w-4" />
+                  </Button>
+                  <Button variant="destructive" size="sm" onClick={() => handleDelete(cat.id)} disabled={isPending}>
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+            )}
           </div>
         ))}
       </div>

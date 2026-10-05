@@ -38,6 +38,7 @@ export async function deleteScraperUrl(id: string) {
       where: { id },
     });
     revalidatePath("/settings");
+    revalidatePath("/");
     return { success: true };
   } catch (error) {
     return { error: "Failed to delete URL." };
@@ -51,8 +52,33 @@ export async function toggleScraperUrl(id: string, isActive: boolean) {
       data: { isActive },
     });
     revalidatePath("/settings");
+    revalidatePath("/");
     return { success: true };
   } catch (error) {
     return { error: "Failed to update URL status." };
+  }
+}
+
+export async function updateScraperUrl(id: string, url: string, name: string) {
+  if (!url.trim()) return { error: "URL is required." };
+  try {
+    new URL(url);
+  } catch (e) {
+    return { error: "Invalid URL." };
+  }
+
+  try {
+    await prisma.scraperUrl.update({
+      where: { id },
+      data: {
+        url: url.trim(),
+        name: name.trim() || null
+      }
+    });
+    revalidatePath("/settings");
+    revalidatePath("/");
+    return { success: true };
+  } catch (error) {
+    return { error: "Failed to update source." };
   }
 }

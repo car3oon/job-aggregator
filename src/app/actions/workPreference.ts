@@ -31,9 +31,32 @@ export async function deleteWorkPreference(id: string) {
       where: { id },
     });
     revalidatePath("/settings");
+    revalidatePath("/");
     return { success: true };
   } catch (error) {
     return { error: "Failed to delete work preference." };
+  }
+}
+
+export async function updateWorkPreference(id: string, name: string, keywordsStr: string = "", isActive: boolean) {
+  if (!name.trim()) return { error: "Name is required." };
+
+  const keywords = keywordsStr.split(",").map(k => k.trim().toLowerCase()).filter(Boolean);
+
+  try {
+    await prisma.workPreference.update({
+      where: { id },
+      data: {
+        name: name.trim(),
+        keywords,
+        isActive
+      }
+    });
+    revalidatePath("/settings");
+    revalidatePath("/");
+    return { success: true };
+  } catch (error) {
+    return { error: "Failed to update work preference." };
   }
 }
 
