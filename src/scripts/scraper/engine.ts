@@ -12,7 +12,7 @@ export function processJob(
   preferences: WorkPreference[]
 ): ProcessedJob {
   // Combine all text related to the job into one searchable string
-  const contentToSearch = `${job.title} ${job.location || ""} ${job.workMode || ""} ${job.rawContent}`.toLowerCase();
+  const contentToSearch = `${job.title} ${job.rawContent}`.toLowerCase();
   
   const matchedCategories: string[] = [];
   const matchedPreferences: string[] = [];
