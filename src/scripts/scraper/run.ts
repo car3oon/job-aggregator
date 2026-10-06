@@ -3,7 +3,7 @@ dotenv.config({ path: ".env.local" });
 dotenv.config(); // fallback to .env
 
 import { justJoinItAdapter } from "./adapters/justjoinit";
-import { ScraperAdapter, ScrapedJob } from "./types";
+import { ScraperAdapter } from "./types";
 import { processJob } from "./engine";
 
 const adapters: ScraperAdapter[] = [
@@ -36,7 +36,8 @@ async function run() {
       }
 
       console.log(`\n⚙️  Running [${adapter.sourceName}] on: ${target.url}`);
-      let scrapedJobs = await adapter.scrape(target.url);
+      const scrapedJobs = await adapter.scrape(target.url);
+
       
 
 
@@ -93,10 +94,7 @@ async function run() {
   }
 
   console.log("\n🏁 Scraping finished.");
+  await prisma.$disconnect();
 }
 
-run()
-  .catch(console.error)
-  .finally(async () => {
-    await prisma.$disconnect();
-  });
+run().catch(console.error);

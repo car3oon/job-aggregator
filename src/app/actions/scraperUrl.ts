@@ -12,7 +12,7 @@ export async function addScraperUrl(url: string, name?: string) {
 
   try {
     new URL(trimmedUrl);
-  } catch (error) {
+  } catch {
     return { error: "Please enter a valid URL (including http:// or https://)." };
   }
 
@@ -27,7 +27,7 @@ export async function addScraperUrl(url: string, name?: string) {
 
     revalidatePath("/settings");
     return { success: true };
-  } catch (error) {
+  } catch {
     return { error: "This URL is already in your scraper list or an error occurred." };
   }
 }
@@ -40,7 +40,7 @@ export async function deleteScraperUrl(id: string) {
     revalidatePath("/settings");
     revalidatePath("/");
     return { success: true };
-  } catch (error) {
+  } catch {
     return { error: "Failed to delete URL." };
   }
 }
@@ -54,7 +54,7 @@ export async function toggleScraperUrl(id: string, isActive: boolean) {
     revalidatePath("/settings");
     revalidatePath("/");
     return { success: true };
-  } catch (error) {
+  } catch {
     return { error: "Failed to update URL status." };
   }
 }
@@ -63,7 +63,7 @@ export async function updateScraperUrl(id: string, url: string, name: string) {
   if (!url.trim()) return { error: "URL is required." };
   try {
     new URL(url);
-  } catch (e) {
+  } catch {
     return { error: "Invalid URL." };
   }
 
@@ -78,7 +78,7 @@ export async function updateScraperUrl(id: string, url: string, name: string) {
     revalidatePath("/settings");
     revalidatePath("/");
     return { success: true };
-  } catch (error) {
+  } catch {
     return { error: "Failed to update source." };
   }
 }
