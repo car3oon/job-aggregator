@@ -13,8 +13,6 @@ model Job {
   source          String           // e.g., "JustJoinIT"
   categories      Category[]       // Many-to-many relation
   workPreferences WorkPreference[] // Many-to-many relation
-  workMode        String?          // Optional, if the adapter easily extracts it
-  location        String?          // Optional, if the adapter easily extracts it
   description     String?          @db.Text // Optional full description/content
   createdAt       DateTime         @default(now())
   updatedAt       DateTime         @updatedAt
