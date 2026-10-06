@@ -23,7 +23,7 @@ export async function addCategory(name: string, keywordsStr: string = "", exclud
 
     revalidatePath("/settings");
     return { success: true };
-  } catch (error) {
+  } catch {
     return { error: "This category already exists or an error occurred." };
   }
 }
@@ -36,7 +36,7 @@ export async function deleteCategory(id: string) {
     revalidatePath("/settings");
     revalidatePath("/");
     return { success: true };
-  } catch (error) {
+  } catch {
     return { error: "Failed to delete category." };
   }
 }
@@ -62,7 +62,7 @@ export async function updateCategory(id: string, name: string, keywordsStr: stri
     revalidatePath("/settings");
     revalidatePath("/");
     return { success: true };
-  } catch (error) {
+  } catch {
     return { error: "Failed to update category. Name might conflict." };
   }
 }

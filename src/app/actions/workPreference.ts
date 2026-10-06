@@ -20,7 +20,7 @@ export async function addWorkPreference(name: string, keywordsStr: string) {
 
     revalidatePath("/settings");
     return { success: true };
-  } catch (error) {
+  } catch {
     return { error: "This preference already exists or an error occurred." };
   }
 }
@@ -33,7 +33,7 @@ export async function deleteWorkPreference(id: string) {
     revalidatePath("/settings");
     revalidatePath("/");
     return { success: true };
-  } catch (error) {
+  } catch {
     return { error: "Failed to delete work preference." };
   }
 }
@@ -55,7 +55,7 @@ export async function updateWorkPreference(id: string, name: string, keywordsStr
     revalidatePath("/settings");
     revalidatePath("/");
     return { success: true };
-  } catch (error) {
+  } catch {
     return { error: "Failed to update work preference." };
   }
 }
@@ -68,7 +68,7 @@ export async function toggleWorkPreference(id: string, isActive: boolean) {
     });
     revalidatePath("/settings");
     return { success: true };
-  } catch (error) {
+  } catch {
     return { error: "Failed to update status." };
   }
 }

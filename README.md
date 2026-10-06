@@ -1,21 +1,22 @@
 # Job Aggregator
 
-A personal job offer aggregator and dashboard. Built as a portfolio project to demonstrate full-stack capabilities, background asynchronous data processing, and modern web architecture.
+A personal job offer aggregator and dashboard. Built as a portfolio project to demonstrate full-stack capabilities, web scraping with Headless Browsers, background asynchronous data processing, and modern web architecture.
 
 ## Features
 
+- **Automated Scraping:** Uses Playwright to navigate SPA-heavy job boards (like JustJoinIT) and intercept real-time API JSON responses, bypassing bot protections.
+- **Smart Filtering Engine:** Parses raw job text against keyword rules (using strict AND `+` or OR `,` operators) and exclusions to automatically categorize jobs.
 - **Protected Dashboard:** The entire application is secured via a single-tenant master password.
-- **Dynamic Categories:** Manage job categories (like React, Node, Vue) dynamically from the `/settings` panel.
-- **Modern Stack:** Fully utilizes Next.js App Router, React Server Components, and Server Actions.
-- **Database:** Relational data architecture powered by Vercel Postgres and Prisma ORM.
-- **Data Normalization:** Preparing for AI integration to normalize raw job tags into strict categories.
+- **Dynamic Settings:** Manage job categories, work preferences, and scraper URLs directly from the `/settings` UI with inline editing.
+- **Database:** Relational data architecture powered by Postgres and Prisma ORM.
 
 ## Tech Stack
 
 - **Framework:** Next.js (App Router)
-- **Styling:** Tailwind CSS + shadcn/ui
+- **Scraper Engine:** Playwright + Cheerio
+- **Styling:** Tailwind CSS + shadcn/ui + lucide-react
 - **ORM:** Prisma ORM
-- **Database:** Vercel Postgres (Serverless)
+- **Database:** Postgres
 - **Validation:** Zod
 
 ## Getting Started
@@ -25,14 +26,33 @@ A personal job offer aggregator and dashboard. Built as a portfolio project to d
    pnpm install
    ```
 
-2. Generate Prisma Client:
+2. Install Playwright browsers (Required for the scraper):
    ```bash
-   pnpm exec prisma generate
+   npx playwright install chromium
    ```
 
-3. Run the development server:
+3. Setup Environment Variables:
+   Create a `.env.local` file with your database URL and master password:
+   ```env
+   DATABASE_URL="postgres://..."
+   ADMIN_PASSWORD="your-password"
+   ```
+
+4. Prepare the Database:
+   ```bash
+   npx prisma generate
+   npx prisma db push
+   ```
+
+5. Run the web dashboard:
    ```bash
    pnpm run dev
    ```
 
-4. Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Running the Scraper
+
+To fetch the latest jobs based on your configured sources and rules, run the standalone scraper script:
+
+```bash
+npx tsx src/scripts/scraper/run.ts
+```

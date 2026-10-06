@@ -184,7 +184,7 @@ export default async function Home({
           <div className="bg-card border rounded-xl p-12 text-center shadow-sm">
             <h3 className="text-xl font-semibold mb-2">No jobs found</h3>
             <p className="text-muted-foreground mb-6 max-w-md mx-auto">
-              We couldn't find any job postings matching your current criteria. Wait for the next scraper run or adjust your categories.
+              We couldn&apos;t find any job postings matching your current criteria. Wait for the next scraper run or adjust your categories.
             </p>
             <Link href="/settings">
               <Button variant="outline">Manage Settings</Button>

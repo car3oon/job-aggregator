@@ -25,12 +25,13 @@ export const justJoinItAdapter: ScraperAdapter = {
             try {
               const data = await response.json();
               // Search for an array that looks like job offers (contains 'title' and 'slug')
-              const findOffers = (obj: any): any[] => {
-                if (Array.isArray(obj)) return obj;
+              const findOffers = (obj: unknown): Record<string, unknown>[] => {
+                if (Array.isArray(obj)) return obj as Record<string, unknown>[];
                 if (typeof obj === 'object' && obj !== null) {
                   for (const key of Object.keys(obj)) {
-                    if (Array.isArray(obj[key]) && obj[key].length > 0 && (obj[key][0].title || obj[key][0].slug)) {
-                      return obj[key];
+                    const val = (obj as Record<string, unknown>)[key];
+                    if (Array.isArray(val) && val.length > 0 && (val[0].title || val[0].slug)) {
+                      return val as Record<string, unknown>[];
                     }
                   }
                 }
@@ -39,10 +40,11 @@ export const justJoinItAdapter: ScraperAdapter = {
               
               const potentialOffers = findOffers(data);
               if (potentialOffers.length > 0) {
-                potentialOffers.forEach((offer: any) => {
-                  const title = offer.title || offer.name || "";
-                  const company = offer.companyName || offer.company?.name || "Unknown";
-                  const slug = offer.slug || offer.id || "";
+                potentialOffers.forEach((offer: Record<string, unknown>) => {
+                  const title = (offer.title || offer.name || "") as string;
+                  const companyObj = offer.company as Record<string, unknown> | undefined;
+                  const company = (offer.companyName || companyObj?.name || "Unknown") as string;
+                  const slug = (offer.slug || offer.id || "") as string;
                   const jobUrl = slug ? `https://justjoin.it/offers/${slug}` : url;
                   const rawContent = JSON.stringify(offer).toLowerCase();
                   
@@ -57,7 +59,7 @@ export const justJoinItAdapter: ScraperAdapter = {
                   }
                 });
               }
-            } catch (e) {
+            } catch {
               // Ignore parsing errors for irrelevant JSONs
             }
           }
@@ -74,7 +76,7 @@ export const justJoinItAdapter: ScraperAdapter = {
       if (jobs.length === 0) {
         console.log(`[JustJoinIT] Clean API interception failed. Scraping from DOM...`);
         const domJobs = await page.evaluate(() => {
-          const results: any[] = [];
+          const results: { title: string, company: string, url: string, source: string, rawContent: string }[] = [];
           // Search for 'a' elements linking to offers (currently /job-offer/)
           const links = Array.from(document.querySelectorAll('a[href*="/job-offer/"]'));
           
