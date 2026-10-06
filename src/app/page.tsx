@@ -55,10 +55,22 @@ export default async function Home({
     orderBy: { createdAt: "desc" },
   });
 
-  // Find the active category (if the URL contains ?category=...)
   const activeCategory = currentCategorySlug
     ? categories.find((c) => c.slug === currentCategorySlug)
     : null;
+
+  // Fetch jobs for the active category (or all if none selected)
+  const jobs = await prisma.job.findMany({
+    where: activeCategory ? {
+      categories: { some: { id: activeCategory.id } }
+    } : undefined,
+    orderBy: { createdAt: "desc" },
+    include: {
+      categories: true,
+      workPreferences: true,
+      scraperUrl: true,
+    }
+  });
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-4 gap-8 animate-in fade-in duration-500">
@@ -168,18 +180,54 @@ export default async function Home({
           )}
         </div>
 
-        <div className="bg-card border rounded-xl p-12 text-center shadow-sm">
-          <h3 className="text-xl font-semibold mb-2">
-            {activeCategory ? `Curating the best offers for ${activeCategory.name}...` : "Ready for Jobs!"}
-          </h3>
-          <p className="text-muted-foreground mb-6 max-w-md mx-auto">
-            Your dashboard structure is fully set up. Once the scraper starts
-            running, matching job postings will appear right here.
-          </p>
-          <Link href="/settings">
-            <Button variant="outline">Manage Settings</Button>
-          </Link>
-        </div>
+        {jobs.length === 0 ? (
+          <div className="bg-card border rounded-xl p-12 text-center shadow-sm">
+            <h3 className="text-xl font-semibold mb-2">No jobs found</h3>
+            <p className="text-muted-foreground mb-6 max-w-md mx-auto">
+              We couldn't find any job postings matching your current criteria. Wait for the next scraper run or adjust your categories.
+            </p>
+            <Link href="/settings">
+              <Button variant="outline">Manage Settings</Button>
+            </Link>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 gap-4">
+            {jobs.map((job) => (
+              <a 
+                key={job.id} 
+                href={job.url} 
+                target="_blank" 
+                rel="noreferrer"
+                className="block bg-card hover:bg-accent/50 border rounded-xl p-5 shadow-sm transition-all hover:shadow-md group"
+              >
+                <div className="flex items-start justify-between gap-4">
+                  <div>
+                    <h3 className="text-lg font-semibold group-hover:text-primary transition-colors">{job.title}</h3>
+                    <div className="flex flex-wrap items-center gap-2 mt-2">
+                      <span className="inline-flex items-center text-xs font-medium bg-secondary text-secondary-foreground px-2 py-1 rounded-md">
+                        <Globe className="w-3 h-3 mr-1" />
+                        {job.source}
+                      </span>
+                      {job.workPreferences.map(pref => (
+                        <span key={pref.id} className="inline-flex items-center text-xs font-medium bg-primary/10 text-primary px-2 py-1 rounded-md">
+                          <MapPin className="w-3 h-3 mr-1" />
+                          {pref.name}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                  <div className="flex flex-wrap justify-end gap-1.5 max-w-[50%]">
+                    {job.categories.map(cat => (
+                      <span key={cat.id} className="text-[10px] uppercase font-bold tracking-wider bg-muted text-muted-foreground px-2.5 py-1 rounded-full whitespace-nowrap">
+                        {cat.name}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              </a>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );
