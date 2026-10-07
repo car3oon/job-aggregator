@@ -1,12 +1,18 @@
 import { prisma } from "@/lib/prisma";
 import { getTimeAgo, formatDate } from "@/lib/utils";
-import { CheckCircle2, XCircle, Clock, PlayCircle, CalendarClock } from "lucide-react";
+import { CheckCircle2, XCircle, Clock, PlayCircle, CalendarClock, AlertTriangle } from "lucide-react";
+import { redirect } from "next/navigation";
+import { isAuthenticated } from "@/lib/auth";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 
 export const dynamic = "force-dynamic";
 
 export default async function HistoryPage() {
+  if (!(await isAuthenticated())) {
+    redirect("/login");
+  }
+
   const history = await prisma.scrapeHistory.findMany({
     orderBy: { startedAt: 'desc' },
     take: 50, // Limit to last 50 runs to keep UI fast
@@ -57,6 +63,7 @@ export default async function HistoryPage() {
                         <div className="flex items-center gap-2">
                           {run.status === "SUCCESS" && <CheckCircle2 className="w-4 h-4 text-green-500" />}
                           {run.status === "FAILED" && <XCircle className="w-4 h-4 text-red-500" />}
+                          {run.status === "PARTIAL" && <AlertTriangle className="w-4 h-4 text-yellow-500" />}
                           {run.status === "RUNNING" && <Clock className="w-4 h-4 text-blue-500 animate-pulse" />}
                           <span className="font-medium">{run.status}</span>
                         </div>

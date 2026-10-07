@@ -8,13 +8,13 @@ export const justJoinItAdapter: ScraperAdapter = {
     console.log(`[JustJoinIT] Launching Playwright browser for: ${url}`);
     
     const browser = await chromium.launch({ headless: true });
-    const context = await browser.newContext({
-      userAgent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
-    });
-    const page = await context.newPage();
-    const jobs: ScrapedJob[] = [];
-
     try {
+      const context = await browser.newContext({
+        userAgent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+      });
+      const page = await context.newPage();
+      const jobs: ScrapedJob[] = [];
+
       // Approach 1: Intercept network traffic (API/GraphQL)
       page.on("response", async (response) => {
         const reqUrl = response.url();
@@ -67,7 +67,10 @@ export const justJoinItAdapter: ScraperAdapter = {
       });
 
       console.log(`[JustJoinIT] Navigating to page and listening for JSON API...`);
-      await page.goto(url, { waitUntil: "networkidle", timeout: 15000 });
+      const response = await page.goto(url, { waitUntil: "networkidle", timeout: 15000 });
+      if (!response || !response.ok()) {
+        throw new Error(`[JustJoinIT] Navigation failed with HTTP ${response?.status() ?? "no response"}`);
+      }
       
       // Try to click Sort -> Latest to ensure we get freshest jobs
       try {
@@ -139,7 +142,7 @@ export const justJoinItAdapter: ScraperAdapter = {
 
     } catch (error) {
       console.error(`[JustJoinIT] Scraping error:`, error);
-      return [];
+      throw error;
     } finally {
       await browser.close();
     }

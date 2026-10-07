@@ -2,22 +2,30 @@
 
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
+import { createSessionToken, SESSION_COOKIE_NAME, SESSION_MAX_AGE } from "@/lib/session";
 
 export async function login(prevState: unknown, formData: FormData) {
   const password = formData.get("password");
-  const envPassword = process.env.APP_PASSWORD;
+  const envPassword = process.env.ADMIN_PASSWORD;
 
   if (!envPassword) {
     return { error: "Missing password in server configuration (.env)" };
   }
 
   if (password === envPassword) {
-    // Password is correct - set security cookie for 30 days
+    let session: string;
+    try {
+      session = createSessionToken();
+    } catch {
+      return { error: "Missing or invalid session configuration (SESSION_SECRET)." };
+    }
+
     const cookieStore = await cookies();
-    cookieStore.set("job_auth", "true", {
+    cookieStore.set(SESSION_COOKIE_NAME, session, {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
-      maxAge: 60 * 60 * 24 * 30, // 30 days
+      sameSite: "lax",
+      maxAge: SESSION_MAX_AGE,
       path: "/",
     });
 
@@ -31,6 +39,6 @@ export async function login(prevState: unknown, formData: FormData) {
 
 export async function logout() {
   const cookieStore = await cookies();
-  cookieStore.delete("job_auth");
+  cookieStore.delete(SESSION_COOKIE_NAME);
   redirect("/login");
 }

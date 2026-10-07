@@ -1,8 +1,9 @@
 "use client";
 
-import { useState, useTransition, useEffect } from "react";
+import { useState, useTransition, useEffect, useRef } from "react";
 import { Play, Check, AlertCircle, Loader2, ExternalLink, Activity } from "lucide-react";
 import { triggerScraperAction, getScraperStatusAction } from "@/app/actions/scraper";
+import { isScraperActive, watchScraperStatus, type ScraperDispatch } from "@/lib/scraper-polling";
 
 export function RunScraperButton() {
   const [isPending, startTransition] = useTransition();
@@ -14,31 +15,27 @@ export function RunScraperButton() {
   const [ghUrl, setGhUrl] = useState<string | null>(null);
 
   const [hideCompleted, setHideCompleted] = useState(false);
+  const [dispatch, setDispatch] = useState<ScraperDispatch>();
+  const lastRunId = useRef<number | undefined>(undefined);
 
-  // Poll GitHub status every 5 seconds
+  // Check once on mount, then poll only while a run is pending or active.
   useEffect(() => {
-    const fetchStatus = async () => {
-      const res = await getScraperStatusAction();
-      if (res) {
-        setGhStatus(res.status || "unknown");
-        setGhConclusion(res.conclusion || null);
-        setGhUrl(res.url || null);
+    return watchScraperStatus(getScraperStatusAction, (res) => {
+      lastRunId.current = res.runId;
+      setGhStatus(res.status || "unknown");
+      setGhConclusion(res.conclusion || null);
+      setGhUrl(res.url || null);
 
-        // If it's already completed and older than 15 seconds, hide it instantly
-        if (res.status === "completed" && res.updatedAt) {
-          const finishedAt = new Date(res.updatedAt).getTime();
-          const now = new Date().getTime();
-          if (now - finishedAt > 15000) {
-            setHideCompleted(true);
-          }
+      // If it's already completed and older than 15 seconds, hide it instantly
+      if (res.status === "completed" && res.updatedAt) {
+        const finishedAt = new Date(res.updatedAt).getTime();
+        const now = new Date().getTime();
+        if (now - finishedAt > 15000) {
+          setHideCompleted(true);
         }
       }
-    };
-    
-    fetchStatus();
-    const interval = setInterval(fetchStatus, 5000);
-    return () => clearInterval(interval);
-  }, []);
+    }, dispatch);
+  }, [dispatch]);
 
   // Delay hiding the completed status when it changes live
   useEffect(() => {
@@ -57,7 +54,10 @@ export function RunScraperButton() {
       if (result.success) {
         setTriggerStatus("success");
         setGhStatus("queued");
+        setGhConclusion(null);
+        setGhUrl(null);
         setHideCompleted(false);
+        setDispatch({ requestedAt: result.requestedAt ?? new Date().toISOString(), previousRunId: lastRunId.current });
         setTimeout(() => setTriggerStatus("idle"), 5000);
       } else {
         setTriggerStatus("error");
@@ -67,7 +67,7 @@ export function RunScraperButton() {
     });
   };
 
-  const isRunning = ghStatus === "in_progress" || ghStatus === "queued";
+  const isRunning = isScraperActive(ghStatus);
   const buttonDisabled = isPending || isRunning;
   
   const showDetailedStatus = ghStatus !== "unknown" && (!hideCompleted || isRunning);
@@ -108,7 +108,7 @@ export function RunScraperButton() {
         <div className="flex items-center justify-between text-xs px-1">
           <div className="flex items-center gap-1.5">
             <span className="font-medium text-muted-foreground">Status:</span>
-            {ghStatus === "queued" && <span className="text-yellow-500 font-medium">Queued</span>}
+            {isRunning && ghStatus !== "in_progress" && <span className="text-yellow-500 font-medium">Queued</span>}
             {ghStatus === "in_progress" && <span className="text-blue-500 font-medium animate-pulse">Running...</span>}
             {ghStatus === "completed" && (
               <span className={ghConclusion === "success" ? "text-green-500 font-medium" : "text-destructive font-medium"}>

@@ -1,9 +1,12 @@
 "use server";
 
+import { verifyAuth } from "@/lib/auth";
+
 import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
 
 export async function addScraperUrl(url: string, name?: string) {
+  await verifyAuth();
   if (!url || url.trim() === "") {
     return { error: "URL cannot be empty." };
   }
@@ -33,6 +36,7 @@ export async function addScraperUrl(url: string, name?: string) {
 }
 
 export async function deleteScraperUrl(id: string) {
+  await verifyAuth();
   try {
     await prisma.scraperUrl.delete({
       where: { id },
@@ -46,6 +50,7 @@ export async function deleteScraperUrl(id: string) {
 }
 
 export async function toggleScraperUrl(id: string, isActive: boolean) {
+  await verifyAuth();
   try {
     await prisma.scraperUrl.update({
       where: { id },
@@ -60,6 +65,7 @@ export async function toggleScraperUrl(id: string, isActive: boolean) {
 }
 
 export async function updateScraperUrl(id: string, url: string, name: string) {
+  await verifyAuth();
   if (!url.trim()) return { error: "URL is required." };
   try {
     new URL(url);

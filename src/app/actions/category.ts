@@ -2,8 +2,10 @@
 
 import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
+import { verifyAuth } from "@/lib/auth";
 
 export async function addCategory(name: string, keywordsStr: string = "", excludedStr: string = "") {
+  await verifyAuth();
   if (!name.trim()) return { error: "Name is required." };
 
   const slug = name.trim().toLowerCase().replace(/[^a-z0-9]+/g, "-");
@@ -29,6 +31,7 @@ export async function addCategory(name: string, keywordsStr: string = "", exclud
 }
 
 export async function deleteCategory(id: string) {
+  await verifyAuth();
   try {
     await prisma.category.delete({
       where: { id },
@@ -42,6 +45,7 @@ export async function deleteCategory(id: string) {
 }
 
 export async function updateCategory(id: string, name: string, keywordsStr: string = "", excludedStr: string = "") {
+  await verifyAuth();
   if (!name.trim()) return { error: "Name is required." };
   const slug = name.trim().toLowerCase().replace(/[^a-z0-9]+/g, "-");
   

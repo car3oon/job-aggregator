@@ -1,4 +1,4 @@
-import { cookies } from "next/headers";
+import { isAuthenticated } from "@/lib/auth";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { prisma } from "@/lib/prisma";
@@ -13,8 +13,7 @@ export default async function Home({
 }) {
   // eslint-disable-next-line react-hooks/purity
   const now = Date.now();
-  const cookieStore = await cookies();
-  const isLoggedIn = cookieStore.has("job_auth");
+  const isLoggedIn = await isAuthenticated();
 
   if (!isLoggedIn) {
     return (

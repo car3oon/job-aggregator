@@ -1,6 +1,6 @@
 # Job Aggregator
 
-A personal job offer aggregator and dashboard. Built as a portfolio project to demonstrate full-stack capabilities, web scraping with Headless Browsers, background asynchronous data processing, and modern web architecture.
+A personal job offer aggregator and dashboard.
 
 ## Features
 
@@ -17,7 +17,6 @@ A personal job offer aggregator and dashboard. Built as a portfolio project to d
 - **Styling:** Tailwind CSS + shadcn/ui + lucide-react
 - **ORM:** Prisma ORM
 - **Database:** Postgres
-- **Validation:** Zod
 
 ## Getting Started
 
@@ -28,7 +27,7 @@ A personal job offer aggregator and dashboard. Built as a portfolio project to d
 
 2. Install Playwright browsers (Required for the scraper):
    ```bash
-   npx playwright install chromium
+   pnpm exec playwright install chromium
    ```
 
 3. Setup Environment Variables:
@@ -36,17 +35,23 @@ A personal job offer aggregator and dashboard. Built as a portfolio project to d
    ```env
    DATABASE_URL="postgres://..."
    ADMIN_PASSWORD="your-password"
+   SESSION_SECRET="replace-with-a-random-secret-of-at-least-32-bytes"
    ```
+
+   Generate a session secret with `pnpm exec node -e "console.log(require('node:crypto').randomBytes(32).toString('hex'))"`.
+   Set `SESSION_SECRET` in your deployment environment as well. Keep it private and stable across deployments.
+   Sessions expire after 30 days. Changing `SESSION_SECRET` or `ADMIN_PASSWORD` invalidates existing sessions.
+   Cookies from older versions are rejected; sign in again after upgrading.
 
 4. Prepare the Database:
    ```bash
-   npx prisma generate
-   npx prisma db push
+   pnpm exec prisma generate
+   pnpm exec prisma db push
    ```
 
 5. Run the web dashboard:
    ```bash
-   pnpm run dev
+   pnpm dev
    ```
 
 ## Running the Scraper
@@ -54,5 +59,15 @@ A personal job offer aggregator and dashboard. Built as a portfolio project to d
 To fetch the latest jobs based on your configured sources and rules, run the standalone scraper script:
 
 ```bash
-npx tsx src/scripts/scraper/run.ts
+pnpm dlx tsx src/scripts/scraper/run.ts
 ```
+
+## Running Tests
+
+Use Node.js 24 or newer to run the TypeScript regression tests with Node's built-in test runner:
+
+```bash
+pnpm test
+```
+
+Run `pnpm typecheck` to check types in both the application and the test files.

@@ -1,6 +1,9 @@
 "use server";
 
+import { verifyAuth } from "@/lib/auth";
+
 export async function triggerScraperAction() {
+  await verifyAuth();
   const token = process.env.GITHUB_TOKEN;
   
   if (!token) {
@@ -8,6 +11,7 @@ export async function triggerScraperAction() {
   }
 
   try {
+    const requestedAt = new Date().toISOString();
     const response = await fetch(
       "https://api.github.com/repos/car3oon/job-aggregator/actions/workflows/scraper.yml/dispatches",
       {
@@ -29,13 +33,14 @@ export async function triggerScraperAction() {
       return { success: false, error: `GitHub API error: ${response.status} - ${errorText}` };
     }
 
-    return { success: true };
+    return { success: true, requestedAt };
   } catch (error: unknown) {
     return { success: false, error: (error as Error).message || "Failed to trigger scraper." };
   }
 }
 
 export async function getScraperStatusAction() {
+  try { await verifyAuth(); } catch { return { status: "unknown", url: null }; }
   const token = process.env.GITHUB_TOKEN;
   
   if (!token) return { status: "unknown", url: null };
@@ -58,10 +63,12 @@ export async function getScraperStatusAction() {
       if (data.workflow_runs && data.workflow_runs.length > 0) {
         const run = data.workflow_runs[0];
         return {
+          runId: run.id,
           status: run.status, // "queued", "in_progress", "completed"
           conclusion: run.conclusion, // "success", "failure", etc.
           url: run.html_url,
-          updatedAt: run.updated_at
+          updatedAt: run.updated_at,
+          createdAt: run.created_at
         };
       }
     }

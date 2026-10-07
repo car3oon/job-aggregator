@@ -13,20 +13,12 @@ const adapters: ScraperAdapter[] = [
 async function run() {
   const { prisma } = await import("../../lib/prisma");
   console.log("🚀 Starting Job Aggregator Scraper...");
-  
+
   // Determine trigger source
   const triggerEnv = process.env.TRIGGER_SOURCE || "MANUAL";
   const trigger = triggerEnv === "schedule" ? "CRON" : "MANUAL";
 
-  // Create initial log entry
-  const history = await prisma.scrapeHistory.create({
-    data: {
-      status: "RUNNING",
-      trigger: trigger,
-      logs: "Scraper started...\n",
-    }
-  });
-
+  let historyId: string | undefined;
   let totalAdded = 0;
   let totalUpdated = 0;
   let logsAccumulator = `Trigger: ${trigger}\n`;
@@ -36,7 +28,17 @@ async function run() {
     logsAccumulator += `${new Date().toISOString()} - ${msg}\n`;
   }
 
+  let hasErrors = false;
   try {
+    const history = await prisma.scrapeHistory.create({
+      data: {
+        status: "RUNNING",
+        trigger,
+        logs: "Scraper started...\n",
+      }
+    });
+    historyId = history.id;
+
     const targets = await prisma.scraperUrl.findMany({ where: { isActive: true } });
     const categories = await prisma.category.findMany();
     const preferences = await prisma.workPreference.findMany({ where: { isActive: true } });
@@ -73,15 +75,15 @@ async function run() {
         let updateCount = 0;
 
         for (const job of processedJobs) {
-          if (job.matchedCategories.length === 0) continue;
-
           try {
-            // We use upsert but we want to count new vs updated, so we can do a quick check
             const existing = await prisma.job.findUnique({ where: { url: job.url } });
-            if (existing) {
-              updateCount++;
-            } else {
-              savedCount++;
+
+            if (job.matchedCategories.length === 0) {
+              if (existing) {
+                // Job no longer matches any category, remove it to keep DB clean
+                await prisma.job.delete({ where: { url: job.url } });
+              }
+              continue;
             }
 
             await prisma.job.upsert({
@@ -104,7 +106,15 @@ async function run() {
                 workPreferences: { connect: job.matchedPreferences.map(name => ({ name })) }
               }
             });
+
+            // Increment counts ONLY after successful upsert
+            if (existing) {
+              updateCount++;
+            } else {
+              savedCount++;
+            }
           } catch (dbErr: unknown) {
+            hasErrors = true;
             appendLog(`⚠️ Failed to save job: ${job.title} - ${(dbErr as Error)?.message}`);
           }
         }
@@ -114,15 +124,23 @@ async function run() {
         appendLog(`✅ Source [${adapter.sourceName}]: Saved ${savedCount} new, Updated ${updateCount} existing jobs.`);
 
       } catch (err: unknown) {
+        hasErrors = true;
         appendLog(`❌ Error scraping ${target.url}: ${(err as Error)?.message}`);
       }
     }
 
-    appendLog("\n🏁 Scraping finished successfully.");
+    appendLog(`\n🏁 Scraping finished with ${hasErrors ? "errors" : "success"}.`);
+
+    // Determine final status
+    let finalStatus = "SUCCESS";
+    if (hasErrors) {
+      finalStatus = (totalAdded + totalUpdated > 0) ? "PARTIAL" : "FAILED";
+    }
+
     await prisma.scrapeHistory.update({
       where: { id: history.id },
       data: {
-        status: "SUCCESS",
+        status: finalStatus,
         endedAt: new Date(),
         jobsAdded: totalAdded,
         jobsUpdated: totalUpdated,
@@ -131,19 +149,28 @@ async function run() {
     });
 
   } catch (globalErr: unknown) {
+    hasErrors = true;
     appendLog(`🚨 CRITICAL FATAL ERROR: ${(globalErr as Error)?.message}`);
-    await prisma.scrapeHistory.update({
-      where: { id: history.id },
-      data: {
-        status: "FAILED",
-        endedAt: new Date(),
-        error: (globalErr as Error)?.message,
-        logs: logsAccumulator
-      }
-    });
+    if (historyId) {
+      await prisma.scrapeHistory.update({
+        where: { id: historyId },
+        data: {
+          status: "FAILED",
+          endedAt: new Date(),
+          error: (globalErr as Error)?.message,
+          logs: logsAccumulator
+        }
+      });
+    }
   } finally {
+    if (hasErrors) {
+      process.exitCode = 1;
+    }
     await prisma.$disconnect();
   }
 }
 
-run().catch(console.error);
+run().catch((error: unknown) => {
+  console.error("Scraper failed:", error);
+  process.exitCode = 1;
+});
