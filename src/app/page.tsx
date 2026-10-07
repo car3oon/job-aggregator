@@ -3,6 +3,7 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { prisma } from "@/lib/prisma";
 import { Hash, Globe, MapPin, XCircle, Clock } from "lucide-react";
+import { RunScraperButton } from "@/components/RunScraperButton";
 
 // In the latest Next.js App Router, searchParams are read asynchronously
 export default async function Home({
@@ -83,6 +84,10 @@ export default async function Home({
     <div className="grid grid-cols-1 lg:grid-cols-4 gap-8 animate-in fade-in duration-500">
       <aside className="space-y-8 lg:col-span-1">
         
+        <div className="bg-card border rounded-xl p-4 shadow-sm">
+          <RunScraperButton />
+        </div>
+
         <div>
           <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-4">
             Categories

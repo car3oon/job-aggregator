@@ -1,0 +1,104 @@
+"use client";
+
+import { useState, useTransition, useEffect } from "react";
+import { Play, Check, AlertCircle, Loader2, ExternalLink, Activity } from "lucide-react";
+import { triggerScraperAction, getScraperStatusAction } from "@/app/actions/scraper";
+
+export function RunScraperButton() {
+  const [isPending, startTransition] = useTransition();
+  const [triggerStatus, setTriggerStatus] = useState<"idle" | "success" | "error">("idle");
+  const [errorMsg, setErrorMsg] = useState("");
+  
+  const [ghStatus, setGhStatus] = useState<string>("unknown");
+  const [ghConclusion, setGhConclusion] = useState<string | null>(null);
+  const [ghUrl, setGhUrl] = useState<string | null>(null);
+
+  // Poll GitHub status every 5 seconds
+  useEffect(() => {
+    const fetchStatus = async () => {
+      const res = await getScraperStatusAction();
+      if (res) {
+        setGhStatus(res.status || "unknown");
+        setGhConclusion(res.conclusion || null);
+        setGhUrl(res.url || null);
+      }
+    };
+    
+    fetchStatus();
+    const interval = setInterval(fetchStatus, 5000);
+    return () => clearInterval(interval);
+  }, []);
+
+  const handleTrigger = () => {
+    startTransition(async () => {
+      setTriggerStatus("idle");
+      const result = await triggerScraperAction();
+      if (result.success) {
+        setTriggerStatus("success");
+        setGhStatus("queued");
+        setTimeout(() => setTriggerStatus("idle"), 5000);
+      } else {
+        setTriggerStatus("error");
+        setErrorMsg(result.error || "Unknown error");
+        setTimeout(() => setTriggerStatus("idle"), 8000);
+      }
+    });
+  };
+
+  const isRunning = ghStatus === "in_progress" || ghStatus === "queued";
+  const buttonDisabled = isPending || isRunning;
+
+  return (
+    <div className="flex flex-col gap-3">
+      <button
+        onClick={handleTrigger}
+        disabled={buttonDisabled}
+        className="flex items-center justify-center gap-2 w-full bg-primary hover:bg-primary/90 text-primary-foreground font-semibold py-2.5 px-4 rounded-md transition-all shadow-sm disabled:opacity-70 disabled:cursor-not-allowed"
+      >
+        {isPending ? (
+          <Loader2 className="w-4 h-4 animate-spin" />
+        ) : isRunning ? (
+          <Activity className="w-4 h-4 animate-pulse" />
+        ) : triggerStatus === "success" ? (
+          <Check className="w-4 h-4" />
+        ) : (
+          <Play className="w-4 h-4" />
+        )}
+        
+        {isPending 
+          ? "Starting..." 
+          : isRunning 
+            ? "Scraping in progress..." 
+            : "Run Scraper Now"}
+      </button>
+
+      {triggerStatus === "error" && (
+        <div className="flex items-start gap-2 text-xs text-destructive bg-destructive/10 p-2 rounded-md">
+          <AlertCircle className="w-4 h-4 shrink-0" />
+          <span className="break-all">{errorMsg}</span>
+        </div>
+      )}
+      
+      {/* Status indicator */}
+      {ghStatus !== "unknown" && (
+        <div className="flex items-center justify-between text-xs px-1">
+          <div className="flex items-center gap-1.5">
+            <span className="font-medium text-muted-foreground">Status:</span>
+            {ghStatus === "queued" && <span className="text-yellow-500 font-medium">Queued</span>}
+            {ghStatus === "in_progress" && <span className="text-blue-500 font-medium animate-pulse">Running...</span>}
+            {ghStatus === "completed" && (
+              <span className={ghConclusion === "success" ? "text-green-500 font-medium" : "text-destructive font-medium"}>
+                {ghConclusion === "success" ? "Success" : "Failed"}
+              </span>
+            )}
+          </div>
+          {ghUrl && (
+            <a href={ghUrl} target="_blank" rel="noreferrer" className="flex items-center gap-1 text-muted-foreground hover:text-foreground transition-colors">
+              Logs <ExternalLink className="w-3 h-3" />
+            </a>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
