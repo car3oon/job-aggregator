@@ -13,6 +13,8 @@ export function RunScraperButton() {
   const [ghConclusion, setGhConclusion] = useState<string | null>(null);
   const [ghUrl, setGhUrl] = useState<string | null>(null);
 
+  const [hideCompleted, setHideCompleted] = useState(false);
+
   // Poll GitHub status every 5 seconds
   useEffect(() => {
     const fetchStatus = async () => {
@@ -21,6 +23,15 @@ export function RunScraperButton() {
         setGhStatus(res.status || "unknown");
         setGhConclusion(res.conclusion || null);
         setGhUrl(res.url || null);
+
+        // If it's already completed and older than 15 seconds, hide it instantly
+        if (res.status === "completed" && res.updatedAt) {
+          const finishedAt = new Date(res.updatedAt).getTime();
+          const now = new Date().getTime();
+          if (now - finishedAt > 15000) {
+            setHideCompleted(true);
+          }
+        }
       }
     };
     
@@ -29,6 +40,16 @@ export function RunScraperButton() {
     return () => clearInterval(interval);
   }, []);
 
+  // Delay hiding the completed status when it changes live
+  useEffect(() => {
+    if (ghStatus === "completed") {
+      const timer = setTimeout(() => {
+        setHideCompleted(true);
+      }, 15000); // Wait 15 seconds before hiding
+      return () => clearTimeout(timer);
+    }
+  }, [ghStatus]);
+
   const handleTrigger = () => {
     startTransition(async () => {
       setTriggerStatus("idle");
@@ -36,6 +57,7 @@ export function RunScraperButton() {
       if (result.success) {
         setTriggerStatus("success");
         setGhStatus("queued");
+        setHideCompleted(false);
         setTimeout(() => setTriggerStatus("idle"), 5000);
       } else {
         setTriggerStatus("error");
@@ -47,6 +69,8 @@ export function RunScraperButton() {
 
   const isRunning = ghStatus === "in_progress" || ghStatus === "queued";
   const buttonDisabled = isPending || isRunning;
+  
+  const showDetailedStatus = ghStatus !== "unknown" && (!hideCompleted || isRunning);
 
   return (
     <div className="flex flex-col gap-3">
@@ -80,7 +104,7 @@ export function RunScraperButton() {
       )}
       
       {/* Status indicator */}
-      {ghStatus !== "unknown" && (
+      {showDetailedStatus ? (
         <div className="flex items-center justify-between text-xs px-1">
           <div className="flex items-center gap-1.5">
             <span className="font-medium text-muted-foreground">Status:</span>
@@ -92,11 +116,21 @@ export function RunScraperButton() {
               </span>
             )}
           </div>
-          {ghUrl && (
-            <a href={ghUrl} target="_blank" rel="noreferrer" className="flex items-center gap-1 text-muted-foreground hover:text-foreground transition-colors">
-              Logs <ExternalLink className="w-3 h-3" />
+          {ghUrl && isRunning ? (
+            <a href={ghUrl} target="_blank" rel="noreferrer" className="flex items-center gap-1 text-muted-foreground hover:text-foreground transition-colors font-medium">
+              Live Logs <ExternalLink className="w-3 h-3" />
+            </a>
+          ) : (
+            <a href="/history" className="flex items-center gap-1 text-muted-foreground hover:text-primary transition-colors font-medium">
+              View History <ExternalLink className="w-3 h-3" />
             </a>
           )}
+        </div>
+      ) : (
+        <div className="flex justify-end text-xs px-1">
+          <a href="/history" className="flex items-center gap-1 text-muted-foreground hover:text-primary transition-colors font-medium">
+            View History <ExternalLink className="w-3 h-3" />
+          </a>
         </div>
       )}
     </div>

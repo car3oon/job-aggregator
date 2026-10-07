@@ -30,8 +30,8 @@ export async function triggerScraperAction() {
     }
 
     return { success: true };
-  } catch (error: any) {
-    return { success: false, error: error.message || "Failed to trigger scraper." };
+  } catch (error: unknown) {
+    return { success: false, error: (error as Error).message || "Failed to trigger scraper." };
   }
 }
 
@@ -60,11 +60,12 @@ export async function getScraperStatusAction() {
         return {
           status: run.status, // "queued", "in_progress", "completed"
           conclusion: run.conclusion, // "success", "failure", etc.
-          url: run.html_url
+          url: run.html_url,
+          updatedAt: run.updated_at
         };
       }
     }
-  } catch (error) {
+  } catch {
     // Ignore errors for status check
   }
   return { status: "unknown", url: null };

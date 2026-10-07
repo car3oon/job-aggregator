@@ -41,4 +41,5 @@ jobs:
       - name: 🚀 Run Scraper Engine
         env:
           PRISMA_DATABASE_URL: ${{ secrets.PRISMA_DATABASE_URL }}
+          TRIGGER_SOURCE: ${{ github.event_name }}
         run: npx tsx src/scripts/scraper/run.ts
