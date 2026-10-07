@@ -56,6 +56,7 @@ async function run() {
             where: { url: job.url },
             update: {
               title: job.title,
+              company: job.company,
               categories: {
                 set: job.matchedCategories.map(name => ({ name }))
               },
@@ -66,6 +67,7 @@ async function run() {
             },
             create: {
               title: job.title,
+              company: job.company,
               url: job.url,
               source: job.source,
               description: job.rawContent,
