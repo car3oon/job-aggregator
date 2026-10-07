@@ -1,11 +1,10 @@
 import Link from "next/link";
 import { Briefcase, Settings, User } from "lucide-react";
 import { LogoutButton } from "./LogoutButton";
-import { cookies } from "next/headers";
+import { isAuthenticated } from "@/lib/auth";
 
 export async function AppBar() {
-  const cookieStore = await cookies();
-  const isLoggedIn = cookieStore.has("job_auth");
+  const isLoggedIn = await isAuthenticated();
 
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-backdrop-filter:bg-background/60">

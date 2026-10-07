@@ -1,9 +1,12 @@
 "use server";
 
+import { verifyAuth } from "@/lib/auth";
+
 import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
 
 export async function addWorkPreference(name: string, keywordsStr: string) {
+  await verifyAuth();
   if (!name.trim()) return { error: "Name is required." };
   if (!keywordsStr.trim()) return { error: "At least one keyword is required." };
 
@@ -26,6 +29,7 @@ export async function addWorkPreference(name: string, keywordsStr: string) {
 }
 
 export async function deleteWorkPreference(id: string) {
+  await verifyAuth();
   try {
     await prisma.workPreference.delete({
       where: { id },
@@ -39,6 +43,7 @@ export async function deleteWorkPreference(id: string) {
 }
 
 export async function updateWorkPreference(id: string, name: string, keywordsStr: string = "", isActive: boolean) {
+  await verifyAuth();
   if (!name.trim()) return { error: "Name is required." };
 
   const keywords = keywordsStr.split(",").map(k => k.trim().toLowerCase()).filter(Boolean);
@@ -61,6 +66,7 @@ export async function updateWorkPreference(id: string, name: string, keywordsStr
 }
 
 export async function toggleWorkPreference(id: string, isActive: boolean) {
+  await verifyAuth();
   try {
     await prisma.workPreference.update({
       where: { id },

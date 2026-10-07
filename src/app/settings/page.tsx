@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { cookies } from "next/headers";
+import { isAuthenticated } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { CategoriesManager } from "@/components/CategoriesManager";
 import { ScraperUrlsManager } from "@/components/ScraperUrlsManager";
@@ -7,10 +7,7 @@ import { WorkPreferencesManager } from "@/components/WorkPreferencesManager";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 export default async function SettingsPage() {
-  const cookieStore = await cookies();
-  const token = cookieStore.get("job_auth");
-
-  if (!token) {
+  if (!(await isAuthenticated())) {
     redirect("/login");
   }
 
