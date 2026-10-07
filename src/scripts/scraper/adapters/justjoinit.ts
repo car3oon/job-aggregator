@@ -69,49 +69,64 @@ export const justJoinItAdapter: ScraperAdapter = {
       console.log(`[JustJoinIT] Navigating to page and listening for JSON API...`);
       await page.goto(url, { waitUntil: "networkidle", timeout: 15000 });
       
-      // Additional wait to let SPA scripts process data
-      await page.waitForTimeout(3000);
+      // Try to click Sort -> Latest to ensure we get freshest jobs
+      try {
+        console.log(`[JustJoinIT] Changing sort order to Latest...`);
+        await page.evaluate(() => {
+          const btn = Array.from(document.querySelectorAll('button')).find(b => b.innerText.includes('Sort by'));
+          if (btn) btn.click();
+        });
+        await page.waitForTimeout(1000); // wait for dropdown animation
+        await page.evaluate(() => {
+          const latestOpt = Array.from(document.querySelectorAll('li, div[role="option"], button, p, span')).find(el => (el as HTMLElement).innerText.trim() === 'Latest' || (el as HTMLElement).innerText.trim() === 'Najnowsze');
+          if (latestOpt) (latestOpt as HTMLElement).click();
+        });
+        // Additional wait to let SPA scripts process data and fetch new JSON
+        await page.waitForTimeout(4000);
+      } catch {
+        console.log(`[JustJoinIT] Could not change sort order. Proceeding with default.`);
+      }
 
       // Approach 2 (Fallback): If API was encoded differently, scrape the DOM
       if (jobs.length === 0) {
         console.log(`[JustJoinIT] Clean API interception failed. Scraping from DOM...`);
         const domJobs = await page.evaluate(() => {
-          const results: { title: string, company: string, url: string, source: string, rawContent: string }[] = [];
-          // Search for 'a' elements linking to offers (currently /job-offer/)
+          const map = new Map<string, { title: string, company: string, url: string, source: string, rawContent: string }>();
           const links = Array.from(document.querySelectorAll('a[href*="/job-offer/"]'));
           
           links.forEach(a => {
             const href = (a as HTMLAnchorElement).href;
-            const textContent = (a as HTMLElement).innerText.trim();
-            if (textContent.length > 10) { // Only rich text blocks
-              const lines = textContent.split('\n').filter(Boolean);
-              
-              // Usually: 0 is company name or empty, 1 is title, etc., this varies
-              // In raw Playwright text, the structure can differ.
-              // Let's find the longest line as title, or just concatenate everything as rawContent for the Smart Engine.
-              
-              // In the new JustJoinIT UI, the title is often in the middle, it's better to assign raw text
-              // and let the Smart Engine extract info from keywords anyway.
-              // Let's take the first reasonable line as 'title', and the second as 'company'.
-              let title = lines.find(l => l.length > 5 && !l.includes("New") && !l.includes("PLN")) || lines[0];
-              let company = lines.find(l => lines.indexOf(l) > lines.indexOf(title) && l.length > 2) || "Unknown";
-              
-              // Hard fallbacks:
-              if (title === "Live status" || title === "Super offer") {
-                 title = lines[2] || lines[0];
-                 company = lines[0] || "Unknown";
-              }
-
-              results.push({
-                title: title,
-                company: company,
-                url: href,
-                source: "JustJoinIT",
-                rawContent: textContent.toLowerCase()
-              });
+            if (!map.has(href)) {
+               map.set(href, { title: "", company: "Unknown", url: href, source: "JustJoinIT", rawContent: "" });
+            }
+            const item = map.get(href)!;
+            
+            const directText = (a as HTMLElement).innerText.trim();
+            if (directText.length > 5 && directText !== "Show profile" && !directText.includes("New")) {
+               item.title = directText;
+            }
+            
+            let parent = a.parentElement;
+            while(parent && parent.innerText.length < 40) {
+               parent = parent.parentElement;
+            }
+            
+            if (parent) {
+               const fullText = parent.innerText.trim();
+               item.rawContent = (item.rawContent + " " + fullText).toLowerCase();
+               const lines = fullText.split('\n').filter(Boolean).map(l => l.trim());
+               if (lines.length > 3) {
+                 let comp = lines[0];
+                 if (comp === "Super offer" || comp === "Live status" || comp.includes("Promoted")) {
+                     comp = lines[1] || "Unknown";
+                 }
+                 if (comp !== item.title && comp.length > 1) {
+                    item.company = comp;
+                 }
+               }
             }
           });
-          return results;
+          return Array.from(map.values()).filter(j => j.title.length > 0);
         });
         
         // Deduplicate by URL

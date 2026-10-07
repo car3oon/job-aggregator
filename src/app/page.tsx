@@ -2,7 +2,7 @@ import { cookies } from "next/headers";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { prisma } from "@/lib/prisma";
-import { Hash, Globe, MapPin, XCircle } from "lucide-react";
+import { Hash, Globe, MapPin, XCircle, Clock } from "lucide-react";
 
 // In the latest Next.js App Router, searchParams are read asynchronously
 export default async function Home({
@@ -10,6 +10,8 @@ export default async function Home({
 }: {
   searchParams: Promise<{ category?: string }>;
 }) {
+  // eslint-disable-next-line react-hooks/purity
+  const now = Date.now();
   const cookieStore = await cookies();
   const isLoggedIn = cookieStore.has("job_auth");
 
@@ -45,6 +47,11 @@ export default async function Home({
 
   const categories = await prisma.category.findMany({
     orderBy: { name: "asc" },
+    include: {
+      _count: {
+        select: { jobs: true }
+      }
+    }
   });
 
   const workPreferences = await prisma.workPreference.findMany({
@@ -100,7 +107,10 @@ export default async function Home({
                   >
                     <div className="flex items-center gap-2 font-medium text-sm">
                       <Hash className={`h-4 w-4 shrink-0 ${isActive ? "text-primary-foreground/80" : "text-muted-foreground"}`} />
-                      <span className="truncate">{cat.name}</span>
+                      <span className="truncate flex-1">{cat.name}</span>
+                      <span className={`ml-auto text-[10px] py-0.5 px-2 rounded-full font-bold ${isActive ? "bg-primary-foreground/20 text-primary-foreground" : "bg-primary/10 text-primary"}`}>
+                        {cat._count.jobs}
+                      </span>
                     </div>
                     {cat.keywords.length > 0 && (
                       <div className={`text-[10px] pl-6 truncate ${isActive ? "text-primary-foreground/70" : "text-muted-foreground opacity-70"}`}>
@@ -192,7 +202,9 @@ export default async function Home({
           </div>
         ) : (
           <div className="grid grid-cols-1 gap-4">
-            {jobs.map((job) => (
+            {jobs.map((job) => {
+              const isNew = now - new Date(job.createdAt).getTime() < 14 * 60 * 60 * 1000; // 14 hours
+              return (
               <a 
                 key={job.id} 
                 href={job.url} 
@@ -202,11 +214,23 @@ export default async function Home({
               >
                 <div className="flex items-start justify-between gap-4">
                   <div>
-                    <h3 className="text-lg font-semibold group-hover:text-primary transition-colors">{job.title}</h3>
-                    <div className="flex flex-wrap items-center gap-2 mt-2">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <h3 className="text-lg font-semibold group-hover:text-primary transition-colors">{job.title}</h3>
+                      {isNew && (
+                        <span className="bg-green-500/10 text-green-600 dark:text-green-400 text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider animate-pulse">
+                          New
+                        </span>
+                      )}
+                    </div>
+                    {job.company && <p className="text-sm text-muted-foreground mt-0.5">{job.company}</p>}
+                    <div className="flex flex-wrap items-center gap-2 mt-3">
                       <span className="inline-flex items-center text-xs font-medium bg-secondary text-secondary-foreground px-2 py-1 rounded-md">
                         <Globe className="w-3 h-3 mr-1" />
                         {job.source}
+                      </span>
+                      <span className="inline-flex items-center text-xs font-medium bg-secondary text-secondary-foreground px-2 py-1 rounded-md">
+                        <Clock className="w-3 h-3 mr-1" />
+                        {new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }).format(new Date(job.createdAt))}
                       </span>
                       {job.workPreferences.map(pref => (
                         <span key={pref.id} className="inline-flex items-center text-xs font-medium bg-primary/10 text-primary px-2 py-1 rounded-md">
@@ -225,7 +249,8 @@ export default async function Home({
                   </div>
                 </div>
               </a>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>

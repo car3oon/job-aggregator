@@ -11,6 +11,7 @@ model Job {
   title           String
   url             String           @unique
   source          String           // e.g., "JustJoinIT"
+  company         String?          // The company name
   categories      Category[]       // Many-to-many relation
   workPreferences WorkPreference[] // Many-to-many relation
   description     String?          @db.Text // Optional full description/content
