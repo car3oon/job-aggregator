@@ -49,3 +49,15 @@ model ScraperUrl {
   createdAt DateTime @default(now())
   jobs      Job[]    // One-to-many relation
 }
+
+model ScrapeHistory {
+  id          String    @id @default(uuid())
+  startedAt   DateTime  @default(now())
+  endedAt     DateTime?
+  status      String    // "RUNNING", "SUCCESS", "FAILED"
+  trigger     String    // "CRON" or "MANUAL"
+  jobsAdded   Int       @default(0)
+  jobsUpdated Int       @default(0)
+  logs        String?   @db.Text
+  error       String?   @db.Text
+}
