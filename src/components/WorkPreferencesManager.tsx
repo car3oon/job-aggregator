@@ -12,6 +12,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Trash2, Loader2, Play, Pause, MapPin, Pencil, Check } from "lucide-react";
 import { toast } from "@/components/ui/toast";
+import { useEscapeKey } from "@/hooks/useEscapeKey";
 
 export function WorkPreferencesManager({
   initialPreferences,
@@ -25,6 +26,8 @@ export function WorkPreferencesManager({
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editName, setEditName] = useState("");
   const [editKeywords, setEditKeywords] = useState("");
+
+  useEscapeKey(() => setEditingId(null), editingId !== null && !isPending);
 
   const handleAdd = () => {
     if (!name.trim() || !keywords.trim()) return;
@@ -82,7 +85,13 @@ export function WorkPreferencesManager({
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row gap-2">
+      <form
+        onSubmit={(e) => {
+          e.preventDefault();
+          handleAdd();
+        }}
+        className="flex flex-col sm:flex-row gap-2"
+      >
         <Input
           placeholder="Name (e.g. Remote, Warsaw Hybrid)"
           value={name}
@@ -94,14 +103,13 @@ export function WorkPreferencesManager({
           placeholder="Keywords (e.g. remote, zdalna, warszawa)"
           value={keywords}
           onChange={(e) => setKeywords(e.target.value)}
-          onKeyDown={(e) => e.key === "Enter" && handleAdd()}
           disabled={isPending}
           className="flex-1"
         />
-        <Button onClick={handleAdd} disabled={isPending || !name.trim() || !keywords.trim()}>
+        <Button type="submit" disabled={isPending || !name.trim() || !keywords.trim()}>
           {isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "Add"}
         </Button>
-      </div>
+      </form>
 
       <div className="space-y-3">
         {initialPreferences.length === 0 && (
@@ -118,20 +126,26 @@ export function WorkPreferencesManager({
             }`}
           >
             {editingId === item.id ? (
-              <div className="flex flex-col gap-3">
+              <form
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  handleSaveEdit(item);
+                }}
+                className="flex flex-col gap-3"
+              >
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                   <Input value={editName} onChange={(e) => setEditName(e.target.value)} disabled={isPending} placeholder="Name" />
                   <Input value={editKeywords} onChange={(e) => setEditKeywords(e.target.value)} disabled={isPending} placeholder="Keywords" />
                 </div>
                 <div className="flex justify-end gap-2">
-                  <Button variant="outline" size="sm" onClick={() => setEditingId(null)} disabled={isPending}>
+                  <Button type="button" variant="outline" size="sm" onClick={() => setEditingId(null)} disabled={isPending}>
                     Cancel
                   </Button>
-                  <Button size="sm" onClick={() => handleSaveEdit(item)} disabled={isPending || !editName.trim()}>
+                  <Button type="submit" size="sm" disabled={isPending || !editName.trim()}>
                     {isPending ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <Check className="h-4 w-4 mr-1" />} Save
                   </Button>
                 </div>
-              </div>
+              </form>
             ) : (
               <div className="flex items-center justify-between gap-2">
                 <div>
