@@ -86,16 +86,20 @@ describe("No Fluff Jobs adapter", () => {
 
   function adapterWithFetch(fetchMock: typeof fetch) {
     return loadSource<AdapterModule>("src/scripts/scraper/adapters/nofluffjobs.ts", { cheerio }, {
-      globals: { fetch: fetchMock, AbortSignal },
+      globals: { fetch: fetchMock, AbortSignal, URLSearchParams },
     }).noFluffJobsAdapter;
   }
 
   test("No Fluff Jobs fetches configured listing with a timeout and parses the response", async () => {
     const adapter = adapterWithFetch(async (input, options) => {
-      assert.equal(String(input), "https://nofluffjobs.com/pl/frontend");
       assert.ok(options?.signal instanceof AbortSignal);
       assert.equal(options.signal.aborted, false);
-      return new Response(card(), { headers: { "content-type": "text/html; charset=utf-8" } });
+      if (options?.method === "POST") {
+        return Response.json({ postings: [{ title: "React Developer", url: "react-developer" }], totalCount: 1, totalPages: 1 });
+      }
+      assert.equal(String(input), "https://nofluffjobs.com/pl/frontend");
+      const state = JSON.stringify({ STORE_KEY: { searchResponse: { criteriaSearch: { category: ["frontend"] } } } });
+      return new Response(card() + `<script id="serverApp-state">${state}</script>`, { headers: { "content-type": "text/html; charset=utf-8" } });
     });
     const jobs = await adapter.scrape("https://nofluffjobs.com/pl/frontend");
     assert.equal(jobs[0].title, "React Developer");
@@ -108,7 +112,7 @@ describe("No Fluff Jobs adapter", () => {
       [async () => new Response("{}", { headers: { "content-type": "application/json" } }), /content type/],
       [async () => { throw new Error("Network failure"); }, /Network failure/],
       [async () => { throw new DOMException("Request timed out", "TimeoutError"); }, /timed out/],
-      [async () => new Response("<html>Challenge</html>", { headers: { "content-type": "text/html" } }), /offers were not found/],
+      [async () => new Response("<html>Challenge</html>", { headers: { "content-type": "text/html" } }), /search state/],
     ];
     for (const [fetchMock, error] of scenarios) {
       await assert.rejects(adapterWithFetch(fetchMock).scrape("https://nofluffjobs.com/pl"), error);

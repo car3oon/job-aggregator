@@ -25,6 +25,13 @@ async function run() {
   let totalUpdated = 0;
   let logsAccumulator = `Trigger: ${trigger}\n`;
 
+  const githubServer = process.env.GITHUB_SERVER_URL || "https://github.com";
+  const githubRepo = process.env.GITHUB_REPOSITORY;
+  const githubRunId = process.env.GITHUB_RUN_ID;
+  if (githubRepo && githubRunId) {
+    logsAccumulator += `GitHub Action: ${githubServer}/${githubRepo}/actions/runs/${githubRunId}\n`;
+  }
+
   function appendLog(msg: string) {
     console.log(msg);
     logsAccumulator += `${new Date().toISOString()} - ${msg}\n`;
@@ -72,6 +79,8 @@ async function run() {
         appendLog(`✅ Extracted ${scrapedJobs.length} raw jobs. Running through Smart Engine...`);
 
         const processedJobs = scrapedJobs.map(job => processJob(job, categories, preferences));
+        const matchedCount = processedJobs.filter(job => job.matchedCategories.length > 0).length;
+        appendLog(`🔎 Category filters: ${matchedCount} matched, ${processedJobs.length - matchedCount} rejected.`);
 
         let savedCount = 0;
         let updateCount = 0;
