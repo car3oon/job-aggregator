@@ -12,7 +12,7 @@ type ScraperEvent = {
   saved?: boolean;
   source?: string;
   url?: string;
-  history?: { status: Scenario[2]; jobsAdded: number };
+  history?: { status: Scenario[2]; jobsAdded: number; logs: string };
 };
 
 const cases: Scenario[] = [
@@ -55,6 +55,10 @@ describe("Scraper runner", () => {
       }
       if (mode === "nonmatching-existing") {
         assert.equal(events.some((event) => event.deleted), true);
+        assert.match(history!.logs, /Category filters: 0 matched, 1 rejected/);
+      }
+      if (mode === "success") {
+        assert.match(history!.logs, /Category filters: 1 matched, 0 rejected/);
       }
       if (mode === "nofluff-success") {
         assert.equal(events.some(event => event.adapter === "NoFluffJobs"), true);

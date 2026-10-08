@@ -14,6 +14,16 @@ export function isWholeWordMatch(content: string, word: string) {
   return regex.test(content);
 }
 
+export function matchesCategory(content: string, category: Pick<Category, "keywords" | "excluded">) {
+  const hasExcluded = category.excluded.some(word => word.trim() && isWholeWordMatch(content, word.trim()));
+  if (hasExcluded) return false;
+
+  return category.keywords.some(group => {
+    if (!group.trim()) return false;
+    return group.split("+").every(word => isWholeWordMatch(content, word.trim()));
+  });
+}
+
 export function processJob(
   job: ScrapedJob,
   categories: Category[],
@@ -27,24 +37,7 @@ export function processJob(
 
   // 1. Process Categories
   for (const cat of categories) {
-    // If the content contains ANY excluded word, we immediately skip this category
-    const hasExcluded = cat.excluded.some(ex => ex.trim() && isWholeWordMatch(contentToSearch, ex.trim().toLowerCase()));
-    if (hasExcluded) continue;
-
-    // If it has ANY required keyword group, it's a match
-    // Keyword group can be "react + node" which means BOTH must be present
-    if (cat.keywords.length > 0) {
-      const hasKeyword = cat.keywords.some(kwGroup => {
-        if (!kwGroup.trim()) return false;
-        // Split by '+' to require ALL words in this specific group
-        const requiredWords = kwGroup.split("+").map(w => w.trim().toLowerCase());
-        return requiredWords.every(word => isWholeWordMatch(contentToSearch, word));
-      });
-      
-      if (hasKeyword) {
-        matchedCategories.push(cat.name);
-      }
-    }
+    if (matchesCategory(contentToSearch, cat)) matchedCategories.push(cat.name);
   }
 
   // 2. Process Work Preferences (Location / Remote)

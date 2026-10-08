@@ -13,7 +13,7 @@ A personal job offer aggregator and dashboard.
 ## Tech Stack
 
 - **Framework:** Next.js (App Router)
-- **Scraper Engine:** Playwright + Cheerio
+- **Scraper Engine:** Playwright (JustJoinIT) + native fetch and Cheerio (No Fluff Jobs)
 - **Styling:** Tailwind CSS + shadcn/ui + lucide-react
 - **ORM:** Prisma ORM
 - **Database:** Postgres
@@ -25,7 +25,7 @@ A personal job offer aggregator and dashboard.
    pnpm install
    ```
 
-2. Install Playwright browsers (Required for the scraper):
+2. Install Playwright browsers (Required for JustJoinIT):
    ```bash
    pnpm exec playwright install chromium
    ```
@@ -57,10 +57,9 @@ A personal job offer aggregator and dashboard.
 ## Running the Scraper
 
 Add an active source in **Settings → Scraper URLs**. Supported domains are `justjoin.it` and `nofluffjobs.com`.
-For No Fluff Jobs, use `https://nofluffjobs.com/pl` or a category listing such as `https://nofluffjobs.com/pl/frontend`.
-The No Fluff Jobs adapter reads the offers included in the listing HTML, including promoted offers, and applies your existing category and work preference rules. It does not follow the “load more” button or fetch individual offer descriptions. Add relevant category URLs for more focused coverage.
 
-To fetch the latest jobs based on your configured sources and rules, run the standalone scraper script:
+Use the dashboard's scraper button to start a manual GitHub Actions run. Push scraper changes to `main` before launching it, since Actions runs the repository version.
+You can also run the scraper locally:
 
 ```bash
 pnpm dlx tsx src/scripts/scraper/run.ts

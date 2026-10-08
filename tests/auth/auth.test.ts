@@ -92,6 +92,7 @@ describe("Authentication and access control", () => {
       "@/lib/auth": context.auth,
       "@/lib/prisma": { prisma },
       "next/cache": { revalidatePath: failBoundary },
+      "@/scripts/scraper/engine": {},
     };
     const cases: Record<string, Record<string, unknown[]>> = {
       category: { addCategory: ["Test", "react"], updateCategory: ["id", "Test", "react"], deleteCategory: ["id"] },
@@ -123,6 +124,7 @@ describe("Authentication and access control", () => {
       "@/components/ui/button": {}, "@/components/RunScraperButton": {}, "@/lib/utils": {},
       "@/components/CategoriesManager": {}, "@/components/ScraperUrlsManager": {},
       "@/components/WorkPreferencesManager": {}, "@/components/ui/tabs": {},
+      "@/components/HistoryTable": {},
     };
     const home = (loadSource("src/app/page.tsx", common) as typeof import("../../src/app/page")).default;
     const settings = (loadSource("src/app/settings/page.tsx", common) as typeof import("../../src/app/settings/page")).default;

@@ -3,6 +3,7 @@
 import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
 import { verifyAuth } from "@/lib/auth";
+import { matchesCategory } from "@/scripts/scraper/engine";
 
 export async function addCategory(name: string, keywordsStr: string = "", excludedStr: string = "") {
   await verifyAuth();
@@ -54,14 +55,25 @@ export async function updateCategory(id: string, name: string, keywordsStr: stri
   const excluded = excludedStr.split(",").map(k => k.trim().toLowerCase()).filter(Boolean);
 
   try {
-    await prisma.category.update({
-      where: { id },
-      data: {
-        name: name.trim(),
-        slug,
-        keywords,
-        excluded
-      }
+    await prisma.$transaction(async tx => {
+      // Recheck every saved offer, including those outside the scraper's page limit.
+      const jobs = await tx.job.findMany({
+        select: { id: true, title: true, description: true },
+      });
+      const matchingJobs = jobs.filter(job =>
+        matchesCategory(`${job.title} ${job.description ?? ""}`, { keywords, excluded })
+      );
+      await tx.category.update({
+        where: { id },
+        data: {
+          name: name.trim(),
+          slug,
+          keywords,
+          excluded,
+          // Replace only this category's links; retain jobs and other categories.
+          jobs: { set: matchingJobs.map(job => ({ id: job.id })) },
+        },
+      });
     });
     revalidatePath("/settings");
     revalidatePath("/");
