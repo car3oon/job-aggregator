@@ -15,7 +15,10 @@ const prisma = {
       record({ history: data });
     },
   },
-  scraperUrl: { findMany: async () => mode === "no-targets" ? [] : [{ id: "target", url: "https://justjoin.it/all-offers" }] },
+  scraperUrl: { findMany: async () => mode === "no-targets" ? [] : [{ id: "target", url:
+    mode === "nofluff-success" ? "https://nofluffjobs.com/pl/frontend" :
+    mode === "lookalike-domain" ? "https://nofluffjobs.com.example.test/pl" : "https://justjoin.it/all-offers",
+  }] },
   category: { findMany: async () => {
     if (mode === "fatal-lookup" || mode === "history-update-failure") throw new Error("Lookup failed");
     return [];
@@ -24,10 +27,10 @@ const prisma = {
   job: {
     findUnique: async () => mode === "nonmatching-existing" ? { id: "job" } : null,
     delete: async () => record({ deleted: true }),
-    upsert: async () => {
+    upsert: async ({ create }: { create: { source: string; url: string } }) => {
       writes++;
       if (mode === "write-failure" || (mode === "partial" && writes === 2)) throw new Error("Write failed");
-      record({ saved: true });
+      record({ saved: true, source: create.source, url: create.url });
     },
   },
   $disconnect: async () => {
@@ -57,6 +60,12 @@ loadSource("src/scripts/scraper/run.ts", {
   dotenv: { config() {} },
   "../../lib/prisma": { prisma },
   "./engine": { processJob: (raw: typeof job) => ({ ...raw, matchedCategories: mode === "nonmatching-existing" ? [] : ["Frontend"], matchedPreferences: [] }) },
+  "./adapters/nofluffjobs": { noFluffJobsAdapter: {
+    domain: "nofluffjobs.com", sourceName: "NoFluffJobs", scrape: async () => {
+      record({ adapter: "NoFluffJobs" });
+      return [{ ...job, source: "NoFluffJobs", url: "https://nofluffjobs.com/pl/job/react-developer" }];
+    },
+  } },
   "./adapters/justjoinit": { justJoinItAdapter: ["timeout", "http-error", "context-failure"].includes(mode) ? realAdapter : {
     domain: "justjoin.it", sourceName: "JustJoinIT", scrape: async () => {
       if (mode === "source-failure") throw new Error("Source failed");

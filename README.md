@@ -4,7 +4,7 @@ A personal job offer aggregator and dashboard.
 
 ## Features
 
-- **Automated Scraping:** Uses Playwright to navigate SPA-heavy job boards (like JustJoinIT) and intercept real-time API JSON responses, bypassing bot protections.
+- **Job Sources:** Supports JustJoinIT via Playwright and No Fluff Jobs via HTTP and Cheerio.
 - **Smart Filtering Engine:** Parses raw job text against keyword rules (using strict AND `+` or OR `,` operators) and exclusions to automatically categorize jobs.
 - **Protected Dashboard:** The entire application is secured via a single-tenant master password.
 - **Dynamic Settings:** Manage job categories, work preferences, and scraper URLs directly from the `/settings` UI with inline editing.
@@ -56,6 +56,10 @@ A personal job offer aggregator and dashboard.
 
 ## Running the Scraper
 
+Add an active source in **Settings → Scraper URLs**. Supported domains are `justjoin.it` and `nofluffjobs.com`.
+For No Fluff Jobs, use `https://nofluffjobs.com/pl` or a category listing such as `https://nofluffjobs.com/pl/frontend`.
+The No Fluff Jobs adapter reads the offers included in the listing HTML, including promoted offers, and applies your existing category and work preference rules. It does not follow the “load more” button or fetch individual offer descriptions. Add relevant category URLs for more focused coverage.
+
 To fetch the latest jobs based on your configured sources and rules, run the standalone scraper script:
 
 ```bash
@@ -69,5 +73,16 @@ Use Node.js 24 or newer to run the TypeScript regression tests with Node's built
 ```bash
 pnpm test
 ```
+
+Tests are grouped by feature, with named suites in the output:
+
+| Directory | Scope | Command |
+| --- | --- | --- |
+| `tests/auth/` | Sessions, login and access control | `pnpm test:auth` |
+| `tests/scraper/` | Scraper runner, source adapters and filtering | `pnpm test:scraper` |
+| `tests/polling/` | Status monitoring, timeouts and cleanup | `pnpm test:polling` |
+
+Shared test utilities remain in `tests/helpers.ts`, and subprocess fixtures in `tests/fixtures/`.
+The regression test job in CI runs each group as a separate step. Tests use local fixtures and boundary mocks, without a database, GitHub credentials or live job board requests.
 
 Run `pnpm typecheck` to check types in both the application and the test files.
