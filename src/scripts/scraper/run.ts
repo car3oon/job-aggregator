@@ -4,12 +4,14 @@ dotenv.config(); // fallback to .env
 
 import { justJoinItAdapter } from "./adapters/justjoinit";
 import { noFluffJobsAdapter } from "./adapters/nofluffjobs";
+import { pracujAdapter } from "./adapters/pracuj";
 import { ScraperAdapter } from "./types";
 import { processJob } from "./engine";
 
 const adapters: ScraperAdapter[] = [
   justJoinItAdapter,
   noFluffJobsAdapter,
+  pracujAdapter,
 ];
 
 async function run() {

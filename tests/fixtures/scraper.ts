@@ -17,6 +17,8 @@ const prisma = {
   },
   scraperUrl: { findMany: async () => mode === "no-targets" ? [] : [{ id: "target", url:
     mode === "nofluff-success" ? "https://nofluffjobs.com/pl/frontend" :
+    mode === "pracuj-success" ? "https://www.pracuj.pl/praca/react;kw" :
+    mode === "pracuj-lookalike-domain" ? "https://pracuj.pl.example.test/praca" :
     mode === "lookalike-domain" ? "https://nofluffjobs.com.example.test/pl" : "https://justjoin.it/all-offers",
   }] },
   category: { findMany: async () => {
@@ -64,6 +66,12 @@ loadSource("src/scripts/scraper/run.ts", {
     domain: "nofluffjobs.com", sourceName: "NoFluffJobs", scrape: async () => {
       record({ adapter: "NoFluffJobs" });
       return [{ ...job, source: "NoFluffJobs", url: "https://nofluffjobs.com/pl/job/react-developer" }];
+    },
+  } },
+  "./adapters/pracuj": { pracujAdapter: {
+    domain: "pracuj.pl", sourceName: "Pracuj.pl", scrape: async () => {
+      record({ adapter: "Pracuj.pl" });
+      return [{ ...job, source: "Pracuj.pl", url: "https://www.pracuj.pl/praca/react-developer,oferta,1001234567" }];
     },
   } },
   "./adapters/justjoinit": { justJoinItAdapter: ["timeout", "http-error", "context-failure"].includes(mode) ? realAdapter : {

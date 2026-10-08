@@ -4,7 +4,7 @@ A personal job offer aggregator and dashboard.
 
 ## Features
 
-- **Job Sources:** Supports JustJoinIT via Playwright and No Fluff Jobs via HTTP and Cheerio.
+- **Job Sources:** Supports JustJoinIT and Pracuj.pl via Playwright, and No Fluff Jobs via HTTP and Cheerio.
 - **Smart Filtering Engine:** Parses raw job text against keyword rules (using strict AND `+` or OR `,` operators) and exclusions to automatically categorize jobs.
 - **Protected Dashboard:** The entire application is secured via a single-tenant master password.
 - **Dynamic Settings:** Manage job categories, work preferences, and scraper URLs directly from the `/settings` UI with inline editing.
@@ -13,7 +13,7 @@ A personal job offer aggregator and dashboard.
 ## Tech Stack
 
 - **Framework:** Next.js (App Router)
-- **Scraper Engine:** Playwright (JustJoinIT) + native fetch and Cheerio (No Fluff Jobs)
+- **Scraper Engine:** Playwright (JustJoinIT, Pracuj.pl) + native fetch (No Fluff Jobs) + Cheerio (No Fluff Jobs, Pracuj.pl)
 - **Styling:** Tailwind CSS + shadcn/ui + lucide-react
 - **ORM:** Prisma ORM
 - **Database:** Postgres
@@ -25,7 +25,7 @@ A personal job offer aggregator and dashboard.
    pnpm install
    ```
 
-2. Install Playwright browsers (Required for JustJoinIT):
+2. Install Playwright browsers (Required for JustJoinIT and Pracuj.pl):
    ```bash
    pnpm exec playwright install chromium
    ```
@@ -56,7 +56,7 @@ A personal job offer aggregator and dashboard.
 
 ## Running the Scraper
 
-Add an active source in **Settings → Scraper URLs**. Supported domains are `justjoin.it` and `nofluffjobs.com`.
+Add an active source in **Settings → Scraper URLs**. Supported domains are `justjoin.it`, `nofluffjobs.com` and `pracuj.pl`.
 
 Use the dashboard's scraper button to start a manual GitHub Actions run. Push scraper changes to `main` before launching it, since Actions runs the repository version.
 You can also run the scraper locally:

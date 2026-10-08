@@ -42,4 +42,5 @@ jobs:
         env:
           PRISMA_DATABASE_URL: ${{ secrets.PRISMA_DATABASE_URL }}
           TRIGGER_SOURCE: ${{ github.event_name }}
-        run: pnpm dlx tsx src/scripts/scraper/run.ts
+          PRACUJ_HEADLESS: "false"
+        run: xvfb-run --auto-servernum pnpm dlx tsx src/scripts/scraper/run.ts
