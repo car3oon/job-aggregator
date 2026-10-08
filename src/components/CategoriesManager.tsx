@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Trash2, Loader2, Hash, Pencil, Check, Ban } from "lucide-react";
 import { toast } from "@/components/ui/toast";
+import { useEscapeKey } from "@/hooks/useEscapeKey";
 
 export function CategoriesManager({
   initialCategories,
@@ -22,6 +23,8 @@ export function CategoriesManager({
   const [editName, setEditName] = useState("");
   const [editKeywords, setEditKeywords] = useState("");
   const [editExcluded, setEditExcluded] = useState("");
+
+  useEscapeKey(() => setEditingId(null), editingId !== null && !isPending);
 
   const handleAdd = () => {
     if (!name.trim()) return;
@@ -74,7 +77,13 @@ export function CategoriesManager({
 
   return (
     <div className="space-y-6">
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+      <form
+        onSubmit={(e) => {
+          e.preventDefault();
+          handleAdd();
+        }}
+        className="grid grid-cols-1 md:grid-cols-3 gap-3"
+      >
         <Input
           placeholder="Name (e.g. React Frontend)"
           value={name}
@@ -93,13 +102,12 @@ export function CategoriesManager({
             value={excluded}
             onChange={(e) => setExcluded(e.target.value)}
             disabled={isPending}
-            onKeyDown={(e) => e.key === "Enter" && handleAdd()}
           />
-          <Button onClick={handleAdd} disabled={isPending || !name.trim()}>
+          <Button type="submit" disabled={isPending || !name.trim()}>
             {isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "Add"}
           </Button>
         </div>
-      </div>
+      </form>
 
       <div className="space-y-3">
         {initialCategories.length === 0 && (
@@ -114,21 +122,27 @@ export function CategoriesManager({
             className="flex flex-col p-4 rounded-lg border bg-card gap-4"
           >
             {editingId === cat.id ? (
-              <div className="flex flex-col gap-3">
+              <form
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  handleSaveEdit(cat.id);
+                }}
+                className="flex flex-col gap-3"
+              >
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                   <Input value={editName} onChange={(e) => setEditName(e.target.value)} disabled={isPending} placeholder="Name" />
                   <Input value={editKeywords} onChange={(e) => setEditKeywords(e.target.value)} disabled={isPending} placeholder="Required Keywords" />
                   <Input value={editExcluded} onChange={(e) => setEditExcluded(e.target.value)} disabled={isPending} placeholder="Excluded Keywords" />
                 </div>
                 <div className="flex justify-end gap-2">
-                  <Button variant="outline" size="sm" onClick={() => setEditingId(null)} disabled={isPending}>
+                  <Button type="button" variant="outline" size="sm" onClick={() => setEditingId(null)} disabled={isPending}>
                     Cancel
                   </Button>
-                  <Button size="sm" onClick={() => handleSaveEdit(cat.id)} disabled={isPending || !editName.trim()}>
+                  <Button type="submit" size="sm" disabled={isPending || !editName.trim()}>
                     {isPending ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <Check className="h-4 w-4 mr-1" />} Save
                   </Button>
                 </div>
-              </div>
+              </form>
             ) : (
               <div className="flex flex-col md:flex-row md:items-center justify-between gap-2">
                 <div>

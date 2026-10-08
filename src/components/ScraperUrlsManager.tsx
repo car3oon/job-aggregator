@@ -12,6 +12,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Trash2, Loader2, Play, Pause, Pencil, Check } from "lucide-react";
 import { toast } from "@/components/ui/toast";
+import { useEscapeKey } from "@/hooks/useEscapeKey";
 
 export function ScraperUrlsManager({
   initialUrls,
@@ -25,6 +26,8 @@ export function ScraperUrlsManager({
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editUrl, setEditUrl] = useState("");
   const [editName, setEditName] = useState("");
+
+  useEscapeKey(() => setEditingId(null), editingId !== null && !isPending);
 
   const handleAdd = () => {
     if (!url.trim()) return;
@@ -84,7 +87,13 @@ export function ScraperUrlsManager({
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row gap-2">
+      <form
+        onSubmit={(e) => {
+          e.preventDefault();
+          handleAdd();
+        }}
+        className="flex flex-col sm:flex-row gap-2"
+      >
         <Input
           placeholder="Service Name (Optional) e.g. JustJoinIT"
           value={name}
@@ -96,14 +105,13 @@ export function ScraperUrlsManager({
           placeholder="https://... (URL to scrape)"
           value={url}
           onChange={(e) => setUrl(e.target.value)}
-          onKeyDown={(e) => e.key === "Enter" && handleAdd()}
           disabled={isPending}
           className="flex-1"
         />
-        <Button onClick={handleAdd} disabled={isPending || !url.trim()}>
+        <Button type="submit" disabled={isPending || !url.trim()}>
           {isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "Add URL"}
         </Button>
-      </div>
+      </form>
 
       <div className="space-y-3">
         {initialUrls.length === 0 && (
@@ -120,20 +128,26 @@ export function ScraperUrlsManager({
             }`}
           >
             {editingId === item.id ? (
-              <div className="flex flex-col gap-3">
+              <form
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  handleSaveEdit(item);
+                }}
+                className="flex flex-col gap-3"
+              >
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                   <Input value={editName} onChange={(e) => setEditName(e.target.value)} disabled={isPending} placeholder="Service Name (Optional)" />
                   <Input value={editUrl} onChange={(e) => setEditUrl(e.target.value)} disabled={isPending} placeholder="URL" />
                 </div>
                 <div className="flex justify-end gap-2">
-                  <Button variant="outline" size="sm" onClick={() => setEditingId(null)} disabled={isPending}>
+                  <Button type="button" variant="outline" size="sm" onClick={() => setEditingId(null)} disabled={isPending}>
                     Cancel
                   </Button>
-                  <Button size="sm" onClick={() => handleSaveEdit(item)} disabled={isPending || !editUrl.trim()}>
+                  <Button type="submit" size="sm" disabled={isPending || !editUrl.trim()}>
                     {isPending ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <Check className="h-4 w-4 mr-1" />} Save
                   </Button>
                 </div>
-              </div>
+              </form>
             ) : (
               <div className="flex items-center justify-between gap-2">
                 <div className="overflow-hidden pr-4">
