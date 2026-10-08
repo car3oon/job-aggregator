@@ -18,6 +18,8 @@ type ScraperEvent = {
 const cases: Scenario[] = [
   ["success", 0, "SUCCESS", 1],
   ["nofluff-success", 0, "SUCCESS", 1],
+  ["pracuj-success", 0, "SUCCESS", 1],
+  ["pracuj-lookalike-domain", 0, "SUCCESS", 0],
   ["lookalike-domain", 0, "SUCCESS", 0],
   ["empty", 0, "SUCCESS", 0],
   ["no-targets", 0, "SUCCESS"],
@@ -65,7 +67,12 @@ describe("Scraper runner", () => {
         assert.equal(events.find(event => event.saved)?.source, "NoFluffJobs");
         assert.equal(events.find(event => event.saved)?.url, "https://nofluffjobs.com/pl/job/react-developer");
       }
-      if (mode === "lookalike-domain") {
+      if (mode === "pracuj-success") {
+        assert.equal(events.some(event => event.adapter === "Pracuj.pl"), true);
+        assert.equal(events.find(event => event.saved)?.source, "Pracuj.pl");
+        assert.equal(events.find(event => event.saved)?.url, "https://www.pracuj.pl/praca/react-developer,oferta,1001234567");
+      }
+      if (["lookalike-domain", "pracuj-lookalike-domain"].includes(mode)) {
         assert.equal(events.some(event => event.adapter || event.saved), false);
       }
     });
