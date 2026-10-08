@@ -3,11 +3,13 @@ dotenv.config({ path: ".env.local" });
 dotenv.config(); // fallback to .env
 
 import { justJoinItAdapter } from "./adapters/justjoinit";
+import { noFluffJobsAdapter } from "./adapters/nofluffjobs";
 import { ScraperAdapter } from "./types";
 import { processJob } from "./engine";
 
 const adapters: ScraperAdapter[] = [
   justJoinItAdapter,
+  noFluffJobsAdapter,
 ];
 
 async function run() {
@@ -57,7 +59,7 @@ async function run() {
     for (const target of targets) {
       try {
         const urlObj = new URL(target.url);
-        const adapter = adapters.find(a => urlObj.hostname.includes(a.domain));
+        const adapter = adapters.find(a => urlObj.hostname === a.domain || urlObj.hostname.endsWith(`.${a.domain}`));
 
         if (!adapter) {
           appendLog(`⏭️ No adapter for ${urlObj.hostname}. Skipping...`);

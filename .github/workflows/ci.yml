@@ -63,5 +63,11 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Run regression tests
-        run: pnpm test
+      - name: Test authentication and access control
+        run: pnpm test:auth
+
+      - name: Test scraper runner and adapters
+        run: pnpm test:scraper
+
+      - name: Test scraper status polling
+        run: pnpm test:polling
