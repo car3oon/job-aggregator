@@ -1,0 +1,24 @@
+name: Schedule diagnostics
+
+# Temporary probe: remove this workflow after checking scheduled run delivery.
+on:
+  schedule:
+    - cron: '*/5 * * * *'
+  workflow_dispatch:
+
+permissions: {}
+
+jobs:
+  diagnose:
+    name: Verify schedule delivery
+    runs-on: ubuntu-24.04
+    timeout-minutes: 2
+    steps:
+      - name: Record trigger and time
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          CRON_EXPRESSION: ${{ github.event.schedule }}
+          COMMIT_SHA: ${{ github.sha }}
+        run: |
+          printf 'Event: %s\nCron: %s\nCommit: %s\n' "$EVENT_NAME" "$CRON_EXPRESSION" "$COMMIT_SHA"
+          date -u +'%Y-%m-%dT%H:%M:%SZ'
