@@ -15,13 +15,13 @@ export function isWholeWordMatch(content: string, word: string) {
 }
 
 export function matchesCategory(content: string, category: Pick<Category, "keywords" | "excluded">) {
-  const hasExcluded = category.excluded.some(word => word.trim() && isWholeWordMatch(content, word.trim()));
-  if (hasExcluded) return false;
-
-  return category.keywords.some(group => {
-    if (!group.trim()) return false;
-    return group.split("+").every(word => isWholeWordMatch(content, word.trim()));
+  // Both inclusion and exclusion groups use '+' for AND; array entries are OR alternatives.
+  const matchesGroup = (group: string) => group.split("+").every(term => {
+    const word = term.trim();
+    return word.length > 0 && isWholeWordMatch(content, word);
   });
+  if (category.excluded.some(matchesGroup)) return false;
+  return category.keywords.some(matchesGroup);
 }
 
 export function processJob(
