@@ -113,7 +113,7 @@ export function ScraperUrlsManager({
         </Button>
       </form>
 
-      <div className="space-y-3">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
         {initialUrls.length === 0 && (
           <p className="text-sm text-muted-foreground italic">
             No scraper URLs added yet.
@@ -135,7 +135,7 @@ export function ScraperUrlsManager({
                 }}
                 className="flex flex-col gap-3"
               >
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div className="flex flex-col gap-3">
                   <Input value={editName} onChange={(e) => setEditName(e.target.value)} disabled={isPending} placeholder="Service Name (Optional)" />
                   <Input value={editUrl} onChange={(e) => setEditUrl(e.target.value)} disabled={isPending} placeholder="URL" />
                 </div>

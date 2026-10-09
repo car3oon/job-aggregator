@@ -18,7 +18,7 @@ export default async function HistoryPage() {
   });
 
   return (
-    <div className="max-w-6xl mx-auto space-y-8 animate-in fade-in duration-500">
+    <div className="space-y-8 animate-in fade-in duration-500">
       <div className="flex items-center gap-4">
         <Link href="/" className="p-2 hover:bg-muted rounded-full transition-colors">
           <ArrowLeft className="w-5 h-5 text-muted-foreground" />

@@ -111,7 +111,7 @@ export function WorkPreferencesManager({
         </Button>
       </form>
 
-      <div className="space-y-3">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
         {initialPreferences.length === 0 && (
           <p className="text-sm text-muted-foreground italic">
             No work preferences added yet.
@@ -133,7 +133,7 @@ export function WorkPreferencesManager({
                 }}
                 className="flex flex-col gap-3"
               >
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div className="flex flex-col gap-3">
                   <Input value={editName} onChange={(e) => setEditName(e.target.value)} disabled={isPending} placeholder="Name" />
                   <Input value={editKeywords} onChange={(e) => setEditKeywords(e.target.value)} disabled={isPending} placeholder="Keywords" />
                 </div>

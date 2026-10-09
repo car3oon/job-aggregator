@@ -1,9 +1,11 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useId, useState, useTransition } from "react";
 import { type Category } from "@prisma/client";
 import { addCategory, deleteCategory, updateCategory } from "@/app/actions/category";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Trash2, Loader2, Hash, Pencil, Check, Ban } from "lucide-react";
 import { toast } from "@/components/ui/toast";
@@ -14,6 +16,7 @@ export function CategoriesManager({
 }: {
   initialCategories: Category[];
 }) {
+  const formId = useId();
   const [name, setName] = useState("");
   const [keywords, setKeywords] = useState("");
   const [excluded, setExcluded] = useState("");
@@ -82,29 +85,49 @@ export function CategoriesManager({
           e.preventDefault();
           handleAdd();
         }}
-        className="grid grid-cols-1 md:grid-cols-3 gap-3"
+        className="flex flex-col gap-3 mb-6 p-4 rounded-lg border bg-muted/20"
       >
+        <Label htmlFor={`${formId}-name`}>Category Name</Label>
         <Input
+          id={`${formId}-name`}
           placeholder="Name (e.g. React Frontend)"
           value={name}
           onChange={(e) => setName(e.target.value)}
           disabled={isPending}
+          className="font-medium"
         />
-        <Input
-          placeholder="Required Keywords (comma separated)"
-          value={keywords}
-          onChange={(e) => setKeywords(e.target.value)}
-          disabled={isPending}
-        />
-        <div className="flex gap-2">
-          <Input
-            placeholder="Excluded (e.g. backend, java)"
-            value={excluded}
-            onChange={(e) => setExcluded(e.target.value)}
-            disabled={isPending}
-          />
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <div className="space-y-2">
+            <Label htmlFor={`${formId}-keywords`}>Required Keywords</Label>
+            <Textarea
+              id={`${formId}-keywords`}
+              aria-describedby={`${formId}-rules-help`}
+              placeholder="Required Keywords (comma separated)"
+              value={keywords}
+              onChange={(e) => setKeywords(e.target.value)}
+              disabled={isPending}
+              className="min-h-[100px]"
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor={`${formId}-excluded`}>Excluded Keywords</Label>
+            <Textarea
+              id={`${formId}-excluded`}
+              aria-describedby={`${formId}-rules-help`}
+              placeholder="Excluded (e.g. backend, java)"
+              value={excluded}
+              onChange={(e) => setExcluded(e.target.value)}
+              disabled={isPending}
+              className="min-h-[100px]"
+            />
+          </div>
+        </div>
+        <p id={`${formId}-rules-help`} className="text-xs text-muted-foreground">
+          Separate groups with commas; use + to require every term in a group.
+        </p>
+        <div className="flex justify-end">
           <Button type="submit" disabled={isPending || !name.trim()}>
-            {isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "Add"}
+            {isPending ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : null} Add Category
           </Button>
         </div>
       </form>
@@ -129,10 +152,19 @@ export function CategoriesManager({
                 }}
                 className="flex flex-col gap-3"
               >
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                  <Input value={editName} onChange={(e) => setEditName(e.target.value)} disabled={isPending} placeholder="Name" />
-                  <Input value={editKeywords} onChange={(e) => setEditKeywords(e.target.value)} disabled={isPending} placeholder="Required Keywords" />
-                  <Input value={editExcluded} onChange={(e) => setEditExcluded(e.target.value)} disabled={isPending} placeholder="Excluded Keywords" />
+                <div className="flex flex-col gap-3">
+                  <Label htmlFor={`${formId}-${cat.id}-name`}>Category Name</Label>
+                  <Input id={`${formId}-${cat.id}-name`} value={editName} onChange={(e) => setEditName(e.target.value)} disabled={isPending} placeholder="Name" className="font-medium" />
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <div className="space-y-2">
+                      <Label htmlFor={`${formId}-${cat.id}-keywords`}>Required Keywords</Label>
+                      <Textarea id={`${formId}-${cat.id}-keywords`} aria-describedby={`${formId}-rules-help`} value={editKeywords} onChange={(e) => setEditKeywords(e.target.value)} disabled={isPending} placeholder="Required Keywords" className="min-h-[80px]" />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor={`${formId}-${cat.id}-excluded`}>Excluded Keywords</Label>
+                      <Textarea id={`${formId}-${cat.id}-excluded`} aria-describedby={`${formId}-rules-help`} value={editExcluded} onChange={(e) => setEditExcluded(e.target.value)} disabled={isPending} placeholder="Excluded Keywords" className="min-h-[80px]" />
+                    </div>
+                  </div>
                 </div>
                 <div className="flex justify-end gap-2">
                   <Button type="button" variant="outline" size="sm" onClick={() => setEditingId(null)} disabled={isPending}>
