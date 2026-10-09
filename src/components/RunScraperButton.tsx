@@ -5,7 +5,10 @@ import { Play, Check, AlertCircle, Loader2, ExternalLink, Activity } from "lucid
 import { triggerScraperAction, getScraperStatusAction } from "@/app/actions/scraper";
 import { isScraperActive, watchScraperStatus, type ScraperDispatch } from "@/lib/scraper-polling";
 
+import { useRouter } from "next/navigation";
+
 export function RunScraperButton() {
+  const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [triggerStatus, setTriggerStatus] = useState<"idle" | "success" | "error">("idle");
   const [errorMsg, setErrorMsg] = useState("");
@@ -37,15 +40,16 @@ export function RunScraperButton() {
     }, dispatch);
   }, [dispatch]);
 
-  // Delay hiding the completed status when it changes live
+  // Delay hiding the completed status when it changes live and refresh the page
   useEffect(() => {
     if (ghStatus === "completed") {
+      router.refresh();
       const timer = setTimeout(() => {
         setHideCompleted(true);
       }, 15000); // Wait 15 seconds before hiding
       return () => clearTimeout(timer);
     }
-  }, [ghStatus]);
+  }, [ghStatus, router]);
 
   const handleTrigger = () => {
     startTransition(async () => {
