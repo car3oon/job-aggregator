@@ -119,9 +119,12 @@ describe("Authentication and access control", () => {
       "@/lib/prisma": { prisma: {
         category: { findMany }, workPreference: { findMany }, scraperUrl: { findMany }, job: { findMany }, scrapeHistory: { findMany },
       } },
+      react: { Suspense: ({ children }: { children: unknown }) => children },
       "react/jsx-runtime": { jsx, jsxs: jsx }, "next/link": () => {}, "lucide-react": {},
       "next/navigation": { redirect: (url: string) => { throw new Error(`redirect:${url}`); } },
       "@/components/ui/button": {}, "@/components/RunScraperButton": {}, "@/lib/utils": {},
+      "@/components/DashboardSkeleton": {},
+      "@/components/SettingsTabs": {},
       "@/components/CategoriesManager": {}, "@/components/ScraperUrlsManager": {},
       "@/components/WorkPreferencesManager": {}, "@/components/ui/tabs": {},
       "@/components/HistoryTable": {},
@@ -145,7 +148,10 @@ describe("Authentication and access control", () => {
     assert.equal(reads, 0);
     context.setCookie(valid);
     await context.auth.verifyAuth();
-    await home({ searchParams: Promise.resolve({}) });
+    const dashboard = await home({ searchParams: Promise.resolve({}) }) as unknown as {
+      props: { children: { type: (props: unknown) => Promise<unknown>; props: unknown } };
+    };
+    await dashboard.props.children.type(dashboard.props.children.props);
     await settings();
     await history();
     assert.equal(reads, 8);
