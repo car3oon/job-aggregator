@@ -79,6 +79,28 @@ function validateUrl(value: string): URL {
   return url;
 }
 
+function extractSearchListing(state: Record<string, unknown>): Record<string, unknown> {
+  const store = record(state.STORE_KEY);
+  const legacy = record(store.searchResponse ?? store.homePageResponse);
+  if (Object.keys(legacy).length > 0) return legacy;
+
+  for (const value of Object.values(state)) {
+    const candidate = record(value);
+    if ("criteriaSearch" in candidate && ("postings" in candidate || "totalCount" in candidate)) {
+      return candidate;
+    }
+  }
+
+  for (const value of Object.values(state)) {
+    const candidate = record(value);
+    if ("criteriaSearch" in candidate) {
+      return candidate;
+    }
+  }
+
+  return {};
+}
+
 export function parseNoFluffJobs(html: string): ScrapedJob[] {
   const $ = load(html);
   const jobs = new Map<string, ScrapedJob>();
@@ -119,9 +141,9 @@ export function parseNoFluffJobs(html: string): ScrapedJob[] {
   const stateText = $("script#serverApp-state").text();
   if (stateText) {
     try {
-      const state = JSON.parse(stateText);
-      const result = state?.STORE_KEY?.searchResponse ?? state?.STORE_KEY?.homePageResponse;
-      if (result?.totalCount === 0 && Array.isArray(result.postings) && result.postings.length === 0) {
+      const state = record(JSON.parse(stateText));
+      const result = extractSearchListing(state);
+      if (result.totalCount === 0 && Array.isArray(result.postings) && result.postings.length === 0) {
         return [];
       }
     } catch {
@@ -154,8 +176,7 @@ export const noFluffJobsAdapter: ScraperAdapter = {
     } catch {
       throw new Error("No Fluff Jobs listing is missing valid search state");
     }
-    const store = record(state.STORE_KEY);
-    const listing = record(store.searchResponse ?? store.homePageResponse);
+    const listing = extractSearchListing(state);
     const criteria = record(listing.criteriaSearch);
     if (Object.keys(criteria).length === 0) throw new Error("No Fluff Jobs listing is missing search criteria");
 
