@@ -1,0 +1,1 @@
+ALTER TABLE "Job" ADD COLUMN "expiredAt" TIMESTAMP(3);

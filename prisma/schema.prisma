@@ -17,6 +17,7 @@ model Job {
   description     String?          @db.Text // Optional full description/content
   createdAt       DateTime         @default(now())
   updatedAt       DateTime         @updatedAt
+  expiredAt       DateTime?        // Confirmed inactive by the source portal; retained for recovery
   
   scraperUrlId    String?
   scraperUrl      ScraperUrl?      @relation(fields: [scraperUrlId], references: [id], onDelete: SetNull)

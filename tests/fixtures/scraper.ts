@@ -16,8 +16,8 @@ const prisma = {
     },
   },
   scraperUrl: { findMany: async () => mode === "no-targets" ? [] : [{ id: "target", url:
-    mode === "nofluff-success" ? "https://nofluffjobs.com/pl/frontend" :
-    mode === "pracuj-success" ? "https://www.pracuj.pl/praca/react;kw" :
+    mode.startsWith("nofluff-") ? "https://nofluffjobs.com/pl/frontend" :
+    ["pracuj-success", "pracuj-id-prefix-collision"].includes(mode) ? "https://www.pracuj.pl/praca/react;kw" :
     mode === "pracuj-lookalike-domain" ? "https://pracuj.pl.example.test/praca" :
     mode === "lookalike-domain" ? "https://nofluffjobs.com.example.test/pl" : "https://justjoin.it/all-offers",
   }] },
@@ -27,8 +27,26 @@ const prisma = {
   } },
   workPreference: { findMany: async () => [] },
   job: {
+    findMany: async ({ where }: { where: { source: string } }) => {
+      if (mode === "pracuj-id-prefix-collision" && where.source === "Pracuj.pl") {
+        return [
+          { id: "lookalike", url: "https://www.pracuj.pl/praca/other,oferta,10012345678" },
+          { id: "exact", url: "https://www.pracuj.pl/praca/old-slug,oferta,1001234567" },
+        ];
+      }
+      record({ availabilityRead: where.source });
+      return ["nofluff-availability", "nofluff-status-error"].includes(mode) ? [
+        { id: "expired", url: "https://nofluffjobs.com/pl/job/expired", updatedAt: new Date("2026-10-01"), expiredAt: null },
+        { id: "active", url: "https://nofluffjobs.com/pl/job/active", updatedAt: new Date("2026-10-01"), expiredAt: null },
+      ] : [];
+    },
+    updateMany: async ({ where, data }: { where: { id: string }; data: { expiredAt: Date | null } }) => {
+      record({ availabilityChanged: where.id, expired: data.expiredAt !== null });
+      return { count: 1 };
+    },
     findUnique: async () => mode === "nonmatching-existing" ? { id: "job" } : null,
-    delete: async () => record({ deleted: true }),
+    delete: async ({ where }: { where: { url: string } }) => record({ deleted: true, url: where.url }),
+    deleteMany: async () => { record({ cleanup: true }); return { count: 0 }; },
     upsert: async ({ create }: { create: { source: string; url: string } }) => {
       writes++;
       if (mode === "write-failure" || (mode === "partial" && writes === 2)) throw new Error("Write failed");
@@ -61,11 +79,17 @@ const realAdapter = loadSource<typeof import("../../src/scripts/scraper/adapters
 loadSource("src/scripts/scraper/run.ts", {
   dotenv: { config() {} },
   "../../lib/prisma": { prisma },
-  "./engine": { processJob: (raw: typeof job) => ({ ...raw, matchedCategories: mode === "nonmatching-existing" ? [] : ["Frontend"], matchedPreferences: [] }) },
+  "./engine": { processJob: (raw: typeof job) => ({ ...raw, matchedCategories: ["nonmatching-existing", "pracuj-id-prefix-collision"].includes(mode) ? [] : ["Frontend"], matchedPreferences: [] }) },
+  "./availability": loadSource("src/scripts/scraper/availability.ts"),
   "./adapters/nofluffjobs": { noFluffJobsAdapter: {
     domain: "nofluffjobs.com", sourceName: "NoFluffJobs", scrape: async () => {
       record({ adapter: "NoFluffJobs" });
+      if (mode === "nofluff-source-failure") throw new Error("No Fluff Jobs listing blocked");
       return [{ ...job, source: "NoFluffJobs", url: "https://nofluffjobs.com/pl/job/react-developer" }];
+    },
+    getStatus: async (url: string) => {
+      if (mode === "nofluff-status-error") throw new Error("Status page blocked");
+      return url.endsWith("/expired") ? "expired" : "active";
     },
   } },
   "./adapters/pracuj": { pracujAdapter: {

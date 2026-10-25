@@ -7,12 +7,21 @@ import { noFluffJobsAdapter } from "./adapters/nofluffjobs";
 import { pracujAdapter } from "./adapters/pracuj";
 import { ScraperAdapter } from "./types";
 import { processJob } from "./engine";
+import { refreshJobAvailability } from "./availability";
 
 const adapters: ScraperAdapter[] = [
   justJoinItAdapter,
   noFluffJobsAdapter,
   pracujAdapter,
 ];
+
+function getPracujOfferId(url: string): string | null {
+  try {
+    return new URL(url).pathname.match(/,oferta,(\d+)\/?$/)?.[1] ?? null;
+  } catch {
+    return null;
+  }
+}
 
 async function run() {
   const { prisma } = await import("../../lib/prisma");
@@ -65,6 +74,7 @@ async function run() {
 
     appendLog(`📋 Loaded ${targets.length} targets, ${categories.length} categories, ${preferences.length} work preferences.`);
 
+    const successfulAdapters = new Set<ScraperAdapter>();
     for (const target of targets) {
       try {
         const urlObj = new URL(target.url);
@@ -77,6 +87,7 @@ async function run() {
 
         appendLog(`\n⚙️ Running [${adapter.sourceName}] on: ${target.url}`);
         const scrapedJobs = await adapter.scrape(target.url);
+        successfulAdapters.add(adapter);
 
         appendLog(`✅ Extracted ${scrapedJobs.length} raw jobs. Running through Smart Engine...`);
 
@@ -89,42 +100,76 @@ async function run() {
 
         for (const job of processedJobs) {
           try {
-            const existing = await prisma.job.findUnique({ where: { url: job.url } });
+            let existing = await prisma.job.findUnique({ where: { url: job.url } });
+
+            // If not found by exact URL, check if a Pracuj.pl offer exists with the same offer ID.
+            // Note: Offer ID is treated as the stable identity for a single posting on Pracuj.pl.
+            // If an employer publishes a repost or new vacancy with a new offer ID, it is intentionally
+            // stored as a new record to avoid clobbering concurrent openings for similar roles.
+            // Duplicate/variant titles are unified in the UI via job-grouping, and stale postings
+            // naturally expire via the 14-day retention cycle.
+            const pracujOfferId = job.source === "Pracuj.pl" ? getPracujOfferId(job.url) : null;
+            if (!existing && pracujOfferId && typeof prisma.job.findMany === "function") {
+              const pracujCandidates = await prisma.job.findMany({
+                where: {
+                  source: "Pracuj.pl",
+                  url: { contains: `,oferta,${pracujOfferId}` }
+                }
+              });
+              existing = pracujCandidates.find(candidate => getPracujOfferId(candidate.url) === pracujOfferId) ?? null;
+            }
 
             if (job.matchedCategories.length === 0) {
               if (existing) {
                 // Job no longer matches any category, remove it to keep DB clean
-                await prisma.job.delete({ where: { url: job.url } });
+                await prisma.job.delete({ where: { url: existing.url } });
               }
               continue;
             }
 
-            await prisma.job.upsert({
-              where: { url: job.url },
-              update: {
-                title: job.title,
-                company: job.company,
-                categories: { set: job.matchedCategories.map(name => ({ name })) },
-                workPreferences: { set: job.matchedPreferences.map(name => ({ name })) },
-                description: job.rawContent,
-              },
-              create: {
-                title: job.title,
-                company: job.company,
-                url: job.url,
-                source: job.source,
-                description: job.rawContent,
-                scraperUrl: { connect: { id: target.id } },
-                categories: { connect: job.matchedCategories.map(name => ({ name })) },
-                workPreferences: { connect: job.matchedPreferences.map(name => ({ name })) }
-              }
-            });
-
-            // Increment counts ONLY after successful upsert
-            if (existing) {
+            if (existing && existing.url !== job.url) {
+              // Update existing offer with the newly changed URL/title
+              await prisma.job.update({
+                where: { id: existing.id },
+                data: {
+                  title: job.title,
+                  company: job.company,
+                  url: job.url,
+                  categories: { set: job.matchedCategories.map(name => ({ name })) },
+                  workPreferences: { set: job.matchedPreferences.map(name => ({ name })) },
+                  description: job.rawContent,
+                  expiredAt: null,
+                }
+              });
               updateCount++;
             } else {
-              savedCount++;
+              await prisma.job.upsert({
+                where: { url: job.url },
+                update: {
+                  title: job.title,
+                  company: job.company,
+                  categories: { set: job.matchedCategories.map(name => ({ name })) },
+                  workPreferences: { set: job.matchedPreferences.map(name => ({ name })) },
+                  description: job.rawContent,
+                  expiredAt: null,
+                },
+                create: {
+                  title: job.title,
+                  company: job.company,
+                  url: job.url,
+                  source: job.source,
+                  description: job.rawContent,
+                  scraperUrl: { connect: { id: target.id } },
+                  categories: { connect: job.matchedCategories.map(name => ({ name })) },
+                  workPreferences: { connect: job.matchedPreferences.map(name => ({ name })) }
+                }
+              });
+
+              if (existing) {
+                updateCount++;
+              } else {
+                savedCount++;
+              }
             }
           } catch (dbErr: unknown) {
             hasErrors = true;
@@ -139,6 +184,18 @@ async function run() {
       } catch (err: unknown) {
         hasErrors = true;
         appendLog(`❌ Error scraping ${target.url}: ${(err as Error)?.message}`);
+      }
+    }
+
+    // Only successful sources with an explicit offer-status checker can change availability.
+    for (const adapter of successfulAdapters) {
+      if (!adapter.getStatus) continue;
+      try {
+        const result = await refreshJobAvailability(adapter, prisma.job, appendLog);
+        appendLog(`🔎 [${adapter.sourceName}] Verified ${result.checked} saved offers; marked ${result.expired} expired; restored ${result.restored}; retained ${result.unknown} with unknown status.`);
+      } catch (error: unknown) {
+        hasErrors = true;
+        appendLog(`⚠️ [${adapter.sourceName}] Availability verification failed: ${(error as Error)?.message}`);
       }
     }
 

@@ -8,17 +8,25 @@ type ScraperEvent = {
   disconnected?: boolean;
   browserClosed?: boolean;
   deleted?: boolean;
+  url?: string;
+  cleanup?: boolean;
+  availabilityRead?: string;
+  availabilityChanged?: string;
+  expired?: boolean;
   adapter?: string;
   saved?: boolean;
   source?: string;
-  url?: string;
   history?: { status: Scenario[2]; jobsAdded: number; logs: string };
 };
 
 const cases: Scenario[] = [
   ["success", 0, "SUCCESS", 1],
   ["nofluff-success", 0, "SUCCESS", 1],
+  ["nofluff-availability", 0, "SUCCESS", 1],
+  ["nofluff-status-error", 0, "SUCCESS", 1],
+  ["nofluff-source-failure", 1, "FAILED", 0],
   ["pracuj-success", 0, "SUCCESS", 1],
+  ["pracuj-id-prefix-collision", 0, "SUCCESS", 0],
   ["pracuj-lookalike-domain", 0, "SUCCESS", 0],
   ["lookalike-domain", 0, "SUCCESS", 0],
   ["empty", 0, "SUCCESS", 0],
@@ -46,6 +54,15 @@ describe("Scraper runner", () => {
       assert.equal(child.status, code, child.stderr);
       const events: ScraperEvent[] = child.stdout.trim().split("\n").filter(Boolean).map((line) => JSON.parse(line));
       assert.equal(events.at(-1)?.disconnected, true);
+      assert.equal(events.some(event => event.cleanup), false, "Limited listings and source failures must not trigger age-based deletion");
+      const availabilityChanges = events.filter(event => event.availabilityChanged);
+      if (mode === "nofluff-availability") {
+        assert.deepEqual(availabilityChanges, [{ availabilityChanged: "expired", expired: true }]);
+        assert.equal(events.find(event => event.availabilityRead)?.availabilityRead, "NoFluffJobs");
+      } else {
+        assert.equal(availabilityChanges.length, 0);
+      }
+      if (mode === "nofluff-source-failure") assert.equal(events.some(event => event.availabilityRead), false);
       const history = events.filter((event) => event.history).at(-1)?.history;
       assert.equal(history?.status, status);
       if (added !== undefined) {
@@ -59,6 +76,9 @@ describe("Scraper runner", () => {
         assert.equal(events.some((event) => event.deleted), true);
         assert.match(history!.logs, /Category filters: 0 matched, 1 rejected/);
       }
+      if (mode === "pracuj-id-prefix-collision") {
+        assert.equal(events.find(event => event.deleted)?.url, "https://www.pracuj.pl/praca/old-slug,oferta,1001234567");
+      }
       if (mode === "success") {
         assert.match(history!.logs, /Category filters: 1 matched, 0 rejected/);
       }
@@ -67,6 +87,7 @@ describe("Scraper runner", () => {
         assert.equal(events.find(event => event.saved)?.source, "NoFluffJobs");
         assert.equal(events.find(event => event.saved)?.url, "https://nofluffjobs.com/pl/job/react-developer");
       }
+      if (mode === "nofluff-status-error") assert.match(history!.logs, /retained 2 with unknown status/);
       if (mode === "pracuj-success") {
         assert.equal(events.some(event => event.adapter === "Pracuj.pl"), true);
         assert.equal(events.find(event => event.saved)?.source, "Pracuj.pl");

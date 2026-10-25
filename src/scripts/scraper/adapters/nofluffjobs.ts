@@ -1,5 +1,5 @@
 import { load } from "cheerio";
-import type { ScrapedJob, ScraperAdapter } from "../types";
+import type { ScrapedJob, ScraperAdapter, ScrapedJobStatus } from "../types";
 
 const domain = "nofluffjobs.com";
 const sourceName = "NoFluffJobs";
@@ -154,9 +154,54 @@ export function parseNoFluffJobs(html: string): ScrapedJob[] {
   throw new Error("No Fluff Jobs offers were not found; the page may be blocked or its layout has changed");
 }
 
+function validateOfferUrl(value: string): URL {
+  const url = validateUrl(value);
+  if (url.protocol !== "https:" || ![domain, `www.${domain}`].includes(url.hostname) || url.port ||
+      !/^\/(?:[a-z]{2}\/)?job\/[^/]+\/?$/.test(url.pathname)) {
+    throw new Error("Expected a No Fluff Jobs HTTPS offer URL");
+  }
+  url.search = "";
+  url.hash = "";
+  return url;
+}
+
+export function parseNoFluffJobStatus(html: string, value: string): ScrapedJobStatus {
+  const url = validateOfferUrl(value);
+  const slug = url.pathname.replace(/\/$/, "").split("/").at(-1);
+  const $ = load(html);
+  let state: Record<string, unknown>;
+  try {
+    state = record(JSON.parse($("script#serverApp-state").text()));
+  } catch {
+    return "unknown";
+  }
+  // Match only this posting, never recommended offers or translation strings.
+  const key = Object.keys(state).find(key => key.split("?")[0] === `/posting/${slug}`);
+  if (!key) return "unknown";
+  const status = record(state[key]).status;
+  const expiredBanner = $("nfj-posting-expired-breadcrumbs").length > 0;
+  if (["DISABLED", "EXPIRED"].includes(String(status)) && expiredBanner) return "expired";
+  if (status === "PUBLISHED" && !expiredBanner && $("common-posting-header h1").text().trim()) return "active";
+  return "unknown";
+}
+
+export async function getNoFluffJobStatus(value: string): Promise<ScrapedJobStatus> {
+  const url = validateOfferUrl(value);
+  const response = await fetch(url, {
+    headers: { Accept: "text/html", "User-Agent": "JobAggregator/1.0" },
+    redirect: "manual",
+    signal: AbortSignal.timeout(15_000),
+  });
+  // Redirects, errors and challenges do not confirm expiry.
+  if (response.status !== 200 || (response.url && response.url !== url.href) ||
+      !response.headers.get("content-type")?.toLowerCase().includes("text/html")) return "unknown";
+  return parseNoFluffJobStatus(await response.text(), url.href);
+}
+
 export const noFluffJobsAdapter: ScraperAdapter = {
   sourceName,
   domain,
+  getStatus: getNoFluffJobStatus,
   async scrape(value) {
     const url = validateUrl(value);
     const response = await fetch(url, {

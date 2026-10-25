@@ -32,12 +32,13 @@ function fixture() {
   const jobs = deferred<unknown[]>();
   const reads: string[] = [];
   let jobQuery: unknown;
+  let categoryQuery: unknown;
   const suspense = Symbol("Suspense");
   const jsx = (type: unknown, props: Element["props"], key?: string) => ({ type, props, key });
   const home = loadSource<{ default: (input: { searchParams: Promise<{ category?: string }> }) => Promise<Element> }>("src/app/page.tsx", {
     "@/lib/auth": { isAuthenticated: async () => true },
     "@/lib/prisma": { prisma: {
-      category: { findMany: () => { reads.push("categories"); return metadata.promise; } },
+      category: { findMany: (query: unknown) => { reads.push("categories"); categoryQuery = query; return metadata.promise; } },
       workPreference: { findMany: async () => { reads.push("preferences"); return []; } },
       scraperUrl: { findMany: async () => { reads.push("sources"); return []; } },
       job: { findMany: (query: unknown) => { reads.push("jobs"); jobQuery = query; return jobs.promise; } },
@@ -46,8 +47,10 @@ function fixture() {
     "react/jsx-runtime": { jsx, jsxs: jsx }, "next/link": () => {}, "lucide-react": {},
     "@/components/ui/button": {}, "@/components/RunScraperButton": {},
     "@/components/DashboardSkeleton": { DashboardSkeleton: () => null, JobListSkeleton: () => null },
+    "@/components/JobCard": { JobCard: () => null },
+    "@/lib/job-grouping": { groupJobs: (items: unknown[]) => items },
   }).default;
-  return { home, metadata, jobs, reads, suspense, jobQuery: () => jobQuery };
+  return { home, metadata, jobs, reads, suspense, jobQuery: () => jobQuery, categoryQuery: () => categoryQuery };
 }
 
 describe("Dashboard loading", () => {
@@ -71,7 +74,8 @@ describe("Dashboard loading", () => {
     context.metadata.resolve([{ id: "react-id", slug: "react", name: "React", keywords: [], excluded: [], _count: { jobs: 1 } }]);
     const dashboard = await pendingDashboard;
     assert.equal(dashboard.type, "div");
-    assert.deepEqual(JSON.parse(JSON.stringify(context.jobQuery())).where, { categories: { some: { id: "react-id" } } });
+    assert.deepEqual(JSON.parse(JSON.stringify(context.jobQuery())).where, { expiredAt: null, categories: { some: { id: "react-id" } } });
+    assert.deepEqual(JSON.parse(JSON.stringify(context.categoryQuery())).include._count.select.jobs.where, { expiredAt: null });
     const offersBoundary = findBoundary(dashboard, context.suspense);
     assert.ok(offersBoundary?.props.fallback);
 
@@ -95,5 +99,15 @@ describe("Dashboard loading", () => {
     assert.notEqual(all.key, react.key);
     assert.notEqual(all.key, categoryAll.key);
     assert.deepEqual(reads, []);
+  });
+
+  test("the unfiltered dashboard also excludes archived offers before grouping related roles", async () => {
+    const context = fixture();
+    const shell = await context.home({ searchParams: Promise.resolve({}) });
+    const pending = render(shell.props.children as Element);
+    context.metadata.resolve([]);
+    await pending;
+    context.jobs.resolve([]);
+    assert.deepEqual(JSON.parse(JSON.stringify(context.jobQuery())).where, { expiredAt: null });
   });
 });

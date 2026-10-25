@@ -2,10 +2,12 @@ import { isAuthenticated } from "@/lib/auth";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { prisma } from "@/lib/prisma";
-import { Hash, Globe, MapPin, XCircle, Clock } from "lucide-react";
+import { Hash, Globe, MapPin, XCircle } from "lucide-react";
 import { RunScraperButton } from "@/components/RunScraperButton";
 import { Suspense } from "react";
 import { DashboardSkeleton, JobListSkeleton } from "@/components/DashboardSkeleton";
+import { JobCard } from "@/components/JobCard";
+import { groupJobs } from "@/lib/job-grouping";
 import { type Job, type Category, type WorkPreference, type ScraperUrl } from "@prisma/client";
 
 type JobWithRelations = Job & {
@@ -65,7 +67,7 @@ async function Dashboard({ currentCategorySlug }: { currentCategorySlug?: string
       orderBy: { name: "asc" },
       include: {
         _count: {
-          select: { jobs: true }
+          select: { jobs: { where: { expiredAt: null } } }
         }
       }
     }),
@@ -83,9 +85,10 @@ async function Dashboard({ currentCategorySlug }: { currentCategorySlug?: string
 
   // Await the lazy Prisma query inside JobList so the sidebar can stream first.
   const jobsPromise = prisma.job.findMany({
-    where: activeCategory ? {
-      categories: { some: { id: activeCategory.id } }
-    } : undefined,
+    where: {
+      expiredAt: null,
+      ...(activeCategory ? { categories: { some: { id: activeCategory.id } } } : {}),
+    },
     orderBy: { createdAt: "desc" },
     include: {
       categories: true,
@@ -223,10 +226,11 @@ async function JobList({
   jobsPromise: Promise<JobWithRelations[]>;
 }) {
   const jobs = await jobsPromise;
+  const groupedJobs = groupJobs(jobs);
   // eslint-disable-next-line react-hooks/purity
   const now = Date.now();
 
-  if (jobs.length === 0) {
+  if (groupedJobs.length === 0) {
     return (
       <div className="bg-card border rounded-xl p-12 text-center shadow-sm">
         <h3 className="text-xl font-semibold mb-2">No jobs found</h3>
@@ -242,55 +246,9 @@ async function JobList({
 
   return (
     <div className="grid grid-cols-1 gap-4">
-      {jobs.map((job) => {
-        const isNew = now - new Date(job.createdAt).getTime() < 14 * 60 * 60 * 1000; // 14 hours
-        return (
-          <a
-            key={job.id}
-            href={job.url}
-            target="_blank"
-            rel="noreferrer"
-            className="block bg-card hover:bg-accent/50 border rounded-xl p-5 shadow-sm transition-all hover:shadow-md group"
-          >
-            <div className="flex items-start justify-between gap-4">
-              <div>
-                <div className="flex flex-wrap items-center gap-2">
-                  <h3 className="text-lg font-semibold group-hover:text-primary transition-colors">{job.title}</h3>
-                  {isNew && (
-                    <span className="bg-green-500/10 text-green-600 dark:text-green-400 text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider animate-pulse">
-                      New
-                    </span>
-                  )}
-                </div>
-                {job.company && <p className="text-sm text-muted-foreground mt-0.5">{job.company}</p>}
-                <div className="flex flex-wrap items-center gap-2 mt-3">
-                  <span className="inline-flex items-center text-xs font-medium bg-secondary text-secondary-foreground px-2 py-1 rounded-md">
-                    <Globe className="w-3 h-3 mr-1" />
-                    {job.source}
-                  </span>
-                  <span className="inline-flex items-center text-xs font-medium bg-secondary text-secondary-foreground px-2 py-1 rounded-md">
-                    <Clock className="w-3 h-3 mr-1" />
-                    {new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }).format(new Date(job.createdAt))}
-                  </span>
-                  {job.workPreferences.map((pref) => (
-                    <span key={pref.id} className="inline-flex items-center text-xs font-medium bg-primary/10 text-primary px-2 py-1 rounded-md">
-                      <MapPin className="w-3 h-3 mr-1" />
-                      {pref.name}
-                    </span>
-                  ))}
-                </div>
-              </div>
-              <div className="flex flex-wrap justify-end gap-1.5 max-w-[50%]">
-                {job.categories.map((cat) => (
-                  <span key={cat.id} className="text-[10px] uppercase font-bold tracking-wider bg-muted text-muted-foreground px-2.5 py-1 rounded-full whitespace-nowrap">
-                    {cat.name}
-                  </span>
-                ))}
-              </div>
-            </div>
-          </a>
-        );
-      })}
+      {groupedJobs.map((job) => (
+        <JobCard key={job.id} job={job} now={now} />
+      ))}
     </div>
   );
 }
