@@ -15,11 +15,13 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 - **UI/Styling:** Use Tailwind CSS and `lucide-react` for icons. Favor minimalist design.
 - **Scraper Engine:** The text matching logic requires comma `,` for OR and plus `+` for AND combinations (e.g. `react + fullstack`).
 
-## Multi-Agent Review Workflow (Herdr & Hunk)
+## Multi-Agent Code Review Workflow (Copilot / Codex in Herdr & Hunk)
 
-- **Code Review Delegation:** When requested to perform or delegate a code review:
-  1. Check if an active Hunk review session exists via `hunk session list`.
-  2. Prompt the `reviewer` agent in Herdr via `herdr agent prompt reviewer "<prompt>"`. If Hunk is active, instruct the reviewer to attach inline annotations using `hunk session comment add`.
-  3. Wait for the review to finish using `herdr agent wait reviewer`.
-  4. Read the output using `herdr agent read reviewer` and provide a concise summary (verdict, critical issues, key suggestions) in chat.
-  5. After applying fixes, automatically resolve ONLY the specific comments that were addressed (via threaded reply `hunk session comment add --reply-to <id>` or dismissal `hunk session comment rm <id>`). Never resolve unaddressed or skipped comments.
+- **Review Delegation:** When requested to perform a code review using Copilot or Codex:
+  1. Determine the reviewer (`copilot` or `codex`).
+  2. Launch the non-blocking background runner: `.pi/scripts/run-herdr-review.sh <copilot|codex> &`.
+  3. The reviewer immediately appears in Herdr's **Agents** sidebar (`copilot-reviewer` or `codex-reviewer`) with its own terminal pane.
+  4. The main chat remains completely free and interactive.
+  5. Findings are posted to Hunk (`hunk session comment add`).
+  6. Upon completion, the runner automatically closes the reviewer pane and frees the agent slot.
+  7. After applying fixes, automatically resolve ONLY the specific comments that were addressed (via `hunk session comment add --repo . --reply-to <id>` or dismissal `hunk session comment rm --repo . <id>`). Never resolve unaddressed or skipped comments.
