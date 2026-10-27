@@ -122,70 +122,140 @@ export const theProtocolAdapter: ScraperAdapter = {
       channel: "chromium",
     });
 
-    const context = await browser.newContext({
-      userAgent:
-        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36",
-    });
-
-    const page = await context.newPage();
-    let interceptedOffers: unknown = null;
-
-    page.on("response", async (res) => {
-      if (res.url().includes("offers/_search/rangeBox") && res.status() === 200) {
-        try {
-          interceptedOffers = await res.json();
-        } catch {
-          // ignore parsing error from non-json responses
-        }
-      }
-    });
-
     try {
+      const page = await browser.newPage({ locale: "pl-PL" });
+      let interceptedOffers: unknown = null;
+
+      page.on("response", async (res) => {
+        if (res.url().includes("offers/_search/rangeBox") && res.status() === 200) {
+          try {
+            interceptedOffers = await res.json();
+          } catch {
+            // ignore parsing error from non-json responses
+          }
+        }
+      });
+
       const response = await page.goto(targetUrl, {
         waitUntil: "domcontentloaded",
         timeout: 30000,
       });
+      validateTheProtocolUrl(page.url());
 
-      // If Cloudflare challenge is served, wait for the listing to stabilize
-      if (response?.headers()["cf-mitigated"] === "challenge") {
-        console.log(`${sourceName}: Cloudflare verification page detected, waiting for search data...`);
-        try {
-          await page.waitForTimeout(5000);
-        } catch {}
+      const isChallenge = response?.headers()["cf-mitigated"] === "challenge";
+      if (isChallenge) {
+        console.log(`${sourceName}: received a Cloudflare verification page; waiting for listing data.`);
+      } else if (!response?.ok()) {
+        throw new Error(`${sourceName}: page failed with HTTP ${response?.status() ?? "no response"}`);
       }
 
-      // Wait up to 15s for the rangeBox API response to arrive
-      const startTime = Date.now();
-      while (!interceptedOffers && Date.now() - startTime < 15000) {
-        await page.waitForTimeout(500);
-      }
-
-      // Fallback: check __NEXT_DATA__ if rangeBox response was not intercepted directly
-      if (!interceptedOffers) {
-        const nextDataOffers = await page.evaluate(() => {
-          const el = document.getElementById("__NEXT_DATA__");
-          if (!el) return null;
-          try {
-            const data = JSON.parse(el.textContent || "{}");
-            return data.props?.pageProps?.offersResponse || null;
-          } catch {
-            return null;
+      const readListing = async (): Promise<ScrapedJob[] | null> => {
+        // If rangeBox response was intercepted, use it (highest data fidelity)
+        if (interceptedOffers) {
+          const jobs = parseTheProtocolOffersResponse(interceptedOffers);
+          const offers = record(interceptedOffers).offers;
+          if (jobs.length > 0 || (Array.isArray(offers) && offers.length === 0)) {
+            console.log(`${sourceName}: ${jobs.length} offers collected via API (limit: ${pageSize} per source).`);
+            return jobs;
           }
-        });
-        if (nextDataOffers) {
-          interceptedOffers = nextDataOffers;
         }
-      }
 
-      if (!interceptedOffers) {
+        // Check __NEXT_DATA__ from page state
+        try {
+          const nextData = await page.evaluate(() => {
+            const el = document.getElementById("__NEXT_DATA__");
+            return el ? JSON.parse(el.textContent || "{}") : null;
+          });
+          const offersResponse = nextData?.props?.pageProps?.offersResponse;
+          if (offersResponse) {
+            const jobs = parseTheProtocolOffersResponse(offersResponse);
+            if (jobs.length > 0 || (Array.isArray(offersResponse.offers) && offersResponse.offers.length === 0)) {
+              console.log(
+                `${sourceName}: ${jobs.length} offers collected via __NEXT_DATA__ (limit: ${pageSize} per source).`
+              );
+              return jobs;
+            }
+          }
+        } catch {
+          // State may be missing, malformed, or replaced during challenge navigation.
+        }
+
+        // Fall back to rendered cards when state is unavailable or malformed.
+        const domOffers = await page.evaluate(() => {
+          const links = Array.from(document.querySelectorAll<HTMLAnchorElement>("a[href*=\",oferta,\"]"));
+          const seen = new Set<string>();
+          const results: Array<{ title: string; url: string; rawContent: string }> = [];
+
+          for (const a of links) {
+            const rawHref = a.href;
+            if (!rawHref || seen.has(rawHref)) continue;
+            seen.add(rawHref);
+
+            // Clean URL of tracking parameters
+            let cleanUrl = rawHref;
+            try {
+              const u = new URL(rawHref);
+              u.search = "";
+              u.hash = "";
+              cleanUrl = u.href;
+            } catch {}
+
+            const container =
+              a.closest("[data-test*=\"offer\"], [class*=\"offer\"], article") || a.parentElement;
+            const rawContent = container ? container.textContent || "" : a.textContent || "";
+            const title =
+              a.querySelector("h2, h3, [class*=\"title\"]")?.textContent ||
+              (a.textContent || "").split("\n")[0];
+
+            results.push({
+              title: title.trim(),
+              url: cleanUrl,
+              rawContent: rawContent.replace(/\s+/g, " ").trim(),
+            });
+          }
+          return results;
+        });
+
+        if (domOffers.length > 0) {
+          const jobs: ScrapedJob[] = domOffers.slice(0, pageSize).map((item) => ({
+            title: item.title,
+            url: item.url,
+            source: sourceName,
+            rawContent: item.rawContent,
+          }));
+          console.log(`${sourceName}: ${jobs.length} offers collected via DOM fallback (limit: ${pageSize} per source).`);
+          return jobs;
+        }
+
+        return null;
+      };
+
+      const timeout = isChallenge ? 30_000 : 25_000;
+      const deadline = Date.now() + timeout;
+      let navigationError: unknown;
+      // Poll extracted data rather than the presence of a Next.js state shell.
+      do {
+        validateTheProtocolUrl(page.url());
+        try {
+          const jobs = await readListing();
+          validateTheProtocolUrl(page.url());
+          if (jobs !== null) return jobs;
+        } catch (error) {
+          if (!/Execution context was destroyed|Cannot find context/.test(String(error))) throw error;
+          navigationError = error;
+        }
+        const remaining = deadline - Date.now();
+        if (remaining <= 0) break;
+        await new Promise(resolve => setTimeout(resolve, Math.min(100, remaining)));
+      } while (Date.now() <= deadline);
+
+      if (isChallenge) {
         throw new Error(
-          "theprotocol.it search response was not intercepted; Cloudflare challenge or API change suspected"
+          `${sourceName}: page is blocked by Cloudflare; listing data did not appear within 30 seconds`,
+          { cause: navigationError }
         );
       }
-
-      const jobs = parseTheProtocolOffersResponse(interceptedOffers);
-      console.log(`${sourceName}: ${jobs.length} offers collected (limit: ${pageSize} per source).`);
-      return jobs;
+      throw new Error("theprotocol.it listing data could not be extracted via API or DOM");
     } finally {
       await browser.close().catch(() => {});
     }
