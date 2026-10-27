@@ -18,8 +18,8 @@ cleanup() {
 }
 trap cleanup EXIT
 
-# 2. Start Pi with selected model
-sleep 0.5
+# 2. Wait until shell prompt is ready in the new pane
+sleep 1.2
 herdr agent start "$AGENT_NAME" --kind pi --pane "$PANE_ID" -- --model "$MODEL"
 
 sleep 1.5

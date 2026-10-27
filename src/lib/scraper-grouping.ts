@@ -23,10 +23,12 @@ export function extractPortal(rawUrl: string, name?: string | null): string {
     }
   })();
 
-  if (host.includes("theprotocol.it")) return "theprotocol.it";
-  if (host.includes("pracuj.pl")) return "Pracuj.pl";
-  if (host.includes("nofluffjobs.com")) return "No Fluff Jobs";
-  if (host.includes("justjoin.it")) return "JustJoinIT";
+  const matchesDomain = (domain: string) => host === domain || host.endsWith(`.${domain}`);
+
+  if (matchesDomain("theprotocol.it")) return "theprotocol.it";
+  if (matchesDomain("pracuj.pl")) return "Pracuj.pl";
+  if (matchesDomain("nofluffjobs.com")) return "No Fluff Jobs";
+  if (matchesDomain("justjoin.it")) return "JustJoinIT";
 
   // Fallback to second-level domain name
   const stripped = host.replace(/^www\./, "");
