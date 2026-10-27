@@ -130,6 +130,7 @@ describe("Authentication and access control", () => {
       "@/components/HistoryTable": {},
       "@/components/JobCard": { JobCard: () => null },
       "@/lib/job-grouping": { groupJobs: (jobs: unknown[]) => jobs },
+      "@/lib/scraper-grouping": { groupScraperUrlsByPortal: () => [] },
     };
     const home = (loadSource("src/app/page.tsx", common) as typeof import("../../src/app/page")).default;
     const settings = (loadSource("src/app/settings/page.tsx", common) as typeof import("../../src/app/settings/page")).default;
