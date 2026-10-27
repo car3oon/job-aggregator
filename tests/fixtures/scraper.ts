@@ -98,6 +98,12 @@ loadSource("src/scripts/scraper/run.ts", {
       return [{ ...job, source: "Pracuj.pl", url: "https://www.pracuj.pl/praca/react-developer,oferta,1001234567" }];
     },
   } },
+  "./adapters/theprotocol": { theProtocolAdapter: {
+    domain: "theprotocol.it", sourceName: "Theprotocol.it", scrape: async () => {
+      record({ adapter: "Theprotocol.it" });
+      return [{ ...job, source: "Theprotocol.it", url: "https://theprotocol.it/szczegoly/oferta/react-developer,oferta,01000000" }];
+    },
+  } },
   "./adapters/justjoinit": { justJoinItAdapter: ["timeout", "http-error", "context-failure"].includes(mode) ? realAdapter : {
     domain: "justjoin.it", sourceName: "JustJoinIT", scrape: async () => {
       if (mode === "source-failure") throw new Error("Source failed");

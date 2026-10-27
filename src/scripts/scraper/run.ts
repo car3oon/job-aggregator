@@ -5,6 +5,7 @@ dotenv.config(); // fallback to .env
 import { justJoinItAdapter } from "./adapters/justjoinit";
 import { noFluffJobsAdapter } from "./adapters/nofluffjobs";
 import { pracujAdapter } from "./adapters/pracuj";
+import { theProtocolAdapter } from "./adapters/theprotocol";
 import { ScraperAdapter } from "./types";
 import { processJob } from "./engine";
 import { refreshJobAvailability } from "./availability";
@@ -13,6 +14,7 @@ const adapters: ScraperAdapter[] = [
   justJoinItAdapter,
   noFluffJobsAdapter,
   pracujAdapter,
+  theProtocolAdapter,
 ];
 
 function getPracujOfferId(url: string): string | null {
