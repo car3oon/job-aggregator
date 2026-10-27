@@ -106,13 +106,24 @@ export function areSimilarTitles(t1: string, t2: string): boolean {
   return common / minLen >= 0.6;
 }
 
+export function getJobPortalIdentity(source: string, url: string): string {
+  if (source === "Pracuj.pl") {
+    const pracujId = url.match(/,oferta,(\d+)(?:[/?#]|$)/)?.[1];
+    if (pracujId) return `Pracuj.pl:${pracujId}`;
+  }
+  if (source === "Theprotocol.it" || url.includes("theprotocol.it")) {
+    const theProtocolId = url.match(/,oferta,([0-9a-fA-F-]+)(?:[/?#]|$)/)?.[1];
+    if (theProtocolId) return `Theprotocol.it:${theProtocolId}`;
+  }
+  return `${source}:${url}`;
+}
+
 export function groupJobs<T extends MinimalJob>(jobs: T[]): GroupedJob[] {
-  // Keep the newest version of each portal identity, including changed Pracuj.pl slugs.
+  // Keep the newest version of each portal identity, including changed Pracuj.pl or Theprotocol.it slugs.
   const identities = new Map<string, T>();
   const newestFirst = [...jobs].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
   for (const job of newestFirst) {
-    const pracujId = job.source === "Pracuj.pl" ? job.url.match(/,oferta,(\d+)(?:[/?#]|$)/)?.[1] : undefined;
-    const identity = JSON.stringify([job.source, pracujId ?? job.url]);
+    const identity = getJobPortalIdentity(job.source, job.url);
     if (!identities.has(identity)) identities.set(identity, job);
   }
 

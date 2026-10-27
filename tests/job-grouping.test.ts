@@ -183,4 +183,66 @@ describe("Job Grouping & Deduplication", () => {
     assert.equal(grouped[0].title, "Frontend Web Developer");
     assert.equal(grouped[0].url, "https://www.pracuj.pl/praca/frontend-web-developer,oferta,1005165360");
   });
+
+  test("groupJobs merges Theprotocol.it offers with the same UUID even if slug changed", () => {
+    const jobs: MinimalJob[] = [
+      {
+        id: "tp-new",
+        title: "Frontend Engineer (React)",
+        company: "Upvanta",
+        url: "https://theprotocol.it/szczegoly/oferta/front-end-engineer-react-warszawa,oferta,01000000-5c5c-423f-f3bd-08df3372ea43",
+        source: "Theprotocol.it",
+        createdAt: new Date("2026-10-26T15:00:00Z"),
+        updatedAt: new Date("2026-10-26T15:00:00Z"),
+      },
+      {
+        id: "tp-old",
+        title: "Frontend Engineer",
+        company: "Upvanta",
+        url: "https://theprotocol.it/szczegoly/oferta/front-end-engineer-zdalnie,oferta,01000000-5c5c-423f-f3bd-08df3372ea43",
+        source: "Theprotocol.it",
+        createdAt: new Date("2026-10-25T10:00:00Z"),
+        updatedAt: new Date("2026-10-25T10:00:00Z"),
+      },
+    ];
+
+    const grouped = groupJobs(jobs);
+    assert.equal(grouped.length, 1);
+    assert.equal(grouped[0].id, "tp-new");
+    assert.equal(grouped[0].title, "Frontend Engineer (React)");
+    assert.equal(grouped[0].url, "https://theprotocol.it/szczegoly/oferta/front-end-engineer-react-warszawa,oferta,01000000-5c5c-423f-f3bd-08df3372ea43");
+  });
+
+  test("groupJobs merges cross-portal offers between Theprotocol.it, Pracuj.pl and NoFluffJobs", () => {
+    const jobs: MinimalJob[] = [
+      {
+        id: "tp-1",
+        title: "Front-End Engineer (React / TypeScript)",
+        company: "UPVANTA SPÓŁKA Z OGRANICZONĄ ODPOWIEDZIALNOŚCIĄ",
+        url: "https://theprotocol.it/szczegoly/oferta/front-end-engineer,oferta,01000000-5c5c-423f-f3bd-08df3372ea43",
+        source: "Theprotocol.it",
+        createdAt: new Date("2026-10-26T14:00:00Z"),
+        updatedAt: new Date("2026-10-26T14:00:00Z"),
+        workPreferences: [{ id: "wp-remote", name: "Remote" }],
+      },
+      {
+        id: "pracuj-1",
+        title: "Front-End Engineer (React / TypeScript)",
+        company: "Upvanta Sp. z o.o.",
+        url: "https://www.pracuj.pl/praca/front-end-engineer,oferta,1009988776",
+        source: "Pracuj.pl",
+        createdAt: new Date("2026-10-26T13:00:00Z"),
+        updatedAt: new Date("2026-10-26T13:00:00Z"),
+        workPreferences: [{ id: "wp-warszawa", name: "Warszawa" }],
+      },
+    ];
+
+    const grouped = groupJobs(jobs);
+    assert.equal(grouped.length, 1);
+    assert.equal(grouped[0].sources.length, 2);
+    const sourceNames = grouped[0].sources.map(s => s.source);
+    assert.ok(sourceNames.includes("Theprotocol.it"));
+    assert.ok(sourceNames.includes("Pracuj.pl"));
+    assert.equal(grouped[0].workPreferences.length, 2);
+  });
 });
