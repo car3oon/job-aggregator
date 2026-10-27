@@ -110,8 +110,15 @@ export const theProtocolAdapter: ScraperAdapter = {
   async scrape(value) {
     const targetUrl = validateTheProtocolUrl(value).href;
 
+    const isHeadless =
+      process.env.THEPROTOCOL_HEADLESS !== undefined
+        ? process.env.THEPROTOCOL_HEADLESS !== "false"
+        : process.env.PRACUJ_HEADLESS !== undefined
+        ? process.env.PRACUJ_HEADLESS !== "false"
+        : true;
+
     const browser = await chromium.launch({
-      headless: process.env.THEPROTOCOL_HEADLESS !== "false",
+      headless: isHeadless,
       channel: "chromium",
     });
 
@@ -134,14 +141,40 @@ export const theProtocolAdapter: ScraperAdapter = {
     });
 
     try {
-      await page.goto(targetUrl, {
-        waitUntil: "networkidle",
+      const response = await page.goto(targetUrl, {
+        waitUntil: "domcontentloaded",
         timeout: 30000,
       });
 
-      // Brief grace period if networkidle fired before the rangeBox json parsed
+      // If Cloudflare challenge is served, wait for the listing to stabilize
+      if (response?.headers()["cf-mitigated"] === "challenge") {
+        console.log(`${sourceName}: Cloudflare verification page detected, waiting for search data...`);
+        try {
+          await page.waitForTimeout(5000);
+        } catch {}
+      }
+
+      // Wait up to 15s for the rangeBox API response to arrive
+      const startTime = Date.now();
+      while (!interceptedOffers && Date.now() - startTime < 15000) {
+        await page.waitForTimeout(500);
+      }
+
+      // Fallback: check __NEXT_DATA__ if rangeBox response was not intercepted directly
       if (!interceptedOffers) {
-        await page.waitForTimeout(2000);
+        const nextDataOffers = await page.evaluate(() => {
+          const el = document.getElementById("__NEXT_DATA__");
+          if (!el) return null;
+          try {
+            const data = JSON.parse(el.textContent || "{}");
+            return data.props?.pageProps?.offersResponse || null;
+          } catch {
+            return null;
+          }
+        });
+        if (nextDataOffers) {
+          interceptedOffers = nextDataOffers;
+        }
       }
 
       if (!interceptedOffers) {
