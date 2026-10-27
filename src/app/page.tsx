@@ -2,7 +2,8 @@ import { isAuthenticated } from "@/lib/auth";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { prisma } from "@/lib/prisma";
-import { Hash, Globe, MapPin, XCircle } from "lucide-react";
+import { Hash, Globe, MapPin, XCircle, ChevronDown } from "lucide-react";
+import { groupScraperUrlsByPortal, extractQueryLabel } from "@/lib/scraper-grouping";
 import { RunScraperButton } from "@/components/RunScraperButton";
 import { Suspense } from "react";
 import { DashboardSkeleton, JobListSkeleton } from "@/components/DashboardSkeleton";
@@ -173,26 +174,64 @@ async function Dashboard({ currentCategorySlug }: { currentCategorySlug?: string
           </div>
         </div>
 
+        {/* Scraping Sources grouped by portal — each portal is an expandable accordion */}
         <div>
           <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-4">
             Scraping Sources
           </h3>
-          <div className="space-y-2">
-            {scraperUrls.map((url) => (
-              <div key={url.id} className={`flex items-start gap-3 px-3 py-2.5 text-sm rounded-md border shadow-sm transition-colors ${url.isActive ? "bg-card" : "bg-muted/30"}`}>
-                <Globe className="h-4 w-4 mt-0.5 shrink-0 text-muted-foreground" />
-                <div className="overflow-hidden w-full">
-                  <p className="font-medium truncate">{url.name || "Unnamed Source"}</p>
-                  <div className="flex items-center justify-between mt-1">
-                    <span className="text-xs text-muted-foreground truncate pr-2">
-                      {new URL(url.url).hostname.replace('www.', '')}
+          {scraperUrls.length === 0 ? (
+            <p className="text-sm text-muted-foreground italic px-2">No sources yet.</p>
+          ) : (
+            <div className="space-y-2">
+              {groupScraperUrlsByPortal(scraperUrls).map((group) => (
+                <details
+                  key={group.portal}
+                  className="group rounded-md border shadow-sm overflow-hidden"
+                  open={group.urls.length === 1}
+                >
+                  {/* Portal header — acts as the accordion trigger */}
+                  <summary className="flex items-center gap-2 px-3 py-2.5 cursor-pointer select-none list-none bg-card hover:bg-accent transition-colors">
+                    <Globe className="h-4 w-4 shrink-0 text-muted-foreground" />
+                    <span className="flex-1 text-sm font-medium truncate">{group.portal}</span>
+                    {/* Badge: count of active variants */}
+                    <span className="text-[10px] py-0.5 px-2 rounded-full font-bold bg-primary/10 text-primary">
+                      {group.urls.filter((u) => u.isActive).length}/{group.urls.length}
                     </span>
-                    <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${url.isActive ? "bg-green-500" : "bg-yellow-500"}`} />
+                    {/* Status dot: green if any active, yellow if all inactive */}
+                    <span
+                      className={`w-1.5 h-1.5 rounded-full shrink-0 ${
+                        group.anyActive ? "bg-green-500" : "bg-yellow-500"
+                      }`}
+                    />
+                    {/* Chevron rotates 180° when the details element is open */}
+                    <ChevronDown className="h-3.5 w-3.5 shrink-0 text-muted-foreground transition-transform duration-200 group-open:rotate-180" />
+                  </summary>
+
+                  {/* Variant list */}
+                  <div className="divide-y border-t">
+                    {group.urls.map((u) => (
+                      <div
+                        key={u.id}
+                        className={`flex items-center gap-2 px-3 py-2 text-sm ${
+                          u.isActive ? "bg-card" : "bg-muted/30"
+                        }`}
+                      >
+                        {/* Clean query label without redundant portal prefix */}
+                        <span className="flex-1 truncate text-muted-foreground">
+                          {extractQueryLabel(u.name, group.portal, u.url)}
+                        </span>
+                        <span
+                          className={`w-1.5 h-1.5 rounded-full shrink-0 ${
+                            u.isActive ? "bg-green-500" : "bg-yellow-500"
+                          }`}
+                        />
+                      </div>
+                    ))}
                   </div>
-                </div>
-              </div>
-            ))}
-          </div>
+                </details>
+              ))}
+            </div>
+          )}
         </div>
 
       </aside>

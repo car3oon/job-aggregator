@@ -10,7 +10,8 @@ import {
 } from "@/app/actions/scraperUrl";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Trash2, Loader2, Play, Pause, Pencil, Check } from "lucide-react";
+import { Trash2, Loader2, Play, Pause, Pencil, Check, ChevronDown } from "lucide-react";
+import { groupScraperUrlsByPortal } from "@/lib/scraper-grouping";
 import { toast } from "@/components/ui/toast";
 import { useEscapeKey } from "@/hooks/useEscapeKey";
 
@@ -113,93 +114,114 @@ export function ScraperUrlsManager({
         </Button>
       </form>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
-        {initialUrls.length === 0 && (
-          <p className="text-sm text-muted-foreground italic">
-            No scraper URLs added yet.
-          </p>
-        )}
+      {/* Grouped-by-portal accordion list */}
+      {initialUrls.length === 0 ? (
+        <p className="text-sm text-muted-foreground italic">
+          No scraper URLs added yet.
+        </p>
+      ) : (
+        <div className="space-y-3">
+          {groupScraperUrlsByPortal(initialUrls).map((group) => (
+            <details
+              key={group.portal}
+              className="group rounded-lg border overflow-hidden"
+              open
+            >
+              {/* Portal header */}
+              <summary className="flex items-center gap-3 px-4 py-3 cursor-pointer select-none list-none bg-muted/40 hover:bg-muted/70 transition-colors">
+                <span className="flex-1 font-semibold text-sm">{group.portal}</span>
+                <span className="text-xs text-muted-foreground">
+                  {group.urls.filter((u) => u.isActive).length} active / {group.urls.length} total
+                </span>
+                <ChevronDown className="h-4 w-4 text-muted-foreground transition-transform duration-200 group-open:rotate-180" />
+              </summary>
 
-        {initialUrls.map((item) => (
-          <div
-            key={item.id}
-            className={`flex flex-col p-4 rounded-lg border transition-colors ${
-              item.isActive ? "bg-card" : "bg-muted/50 opacity-70"
-            }`}
-          >
-            {editingId === item.id ? (
-              <form
-                onSubmit={(e) => {
-                  e.preventDefault();
-                  handleSaveEdit(item);
-                }}
-                className="flex flex-col gap-3"
-              >
-                <div className="flex flex-col gap-3">
-                  <Input value={editName} onChange={(e) => setEditName(e.target.value)} disabled={isPending} placeholder="Service Name (Optional)" />
-                  <Input value={editUrl} onChange={(e) => setEditUrl(e.target.value)} disabled={isPending} placeholder="URL" />
-                </div>
-                <div className="flex justify-end gap-2">
-                  <Button type="button" variant="outline" size="sm" onClick={() => setEditingId(null)} disabled={isPending}>
-                    Cancel
-                  </Button>
-                  <Button type="submit" size="sm" disabled={isPending || !editUrl.trim()}>
-                    {isPending ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <Check className="h-4 w-4 mr-1" />} Save
-                  </Button>
-                </div>
-              </form>
-            ) : (
-              <div className="flex items-center justify-between gap-2">
-                <div className="overflow-hidden pr-4">
-                  <p className="font-medium truncate">
-                    {item.name || "Unnamed Source"}
-                  </p>
-                  <a
-                    href={item.url}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="text-sm text-muted-foreground hover:underline truncate block"
+              {/* URL entries inside the group */}
+              <div className="divide-y">
+                {group.urls.map((item) => (
+                  <div
+                    key={item.id}
+                    className={`flex flex-col p-4 transition-colors ${
+                      item.isActive ? "bg-card" : "bg-muted/50 opacity-70"
+                    }`}
                   >
-                    {item.url}
-                  </a>
-                </div>
-
-                <div className="flex items-center gap-2 shrink-0">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => handleEditInit(item)}
-                    disabled={isPending}
-                  >
-                    <Pencil className="h-4 w-4" />
-                  </Button>
-                  <Button
-                    variant={item.isActive ? "outline" : "secondary"}
-                    size="sm"
-                    onClick={() => handleToggle(item.id, item.isActive)}
-                    disabled={isPending}
-                    title={item.isActive ? "Pause scraping" : "Resume scraping"}
-                  >
-                    {item.isActive ? (
-                      <Pause className="h-4 w-4" />
+                    {editingId === item.id ? (
+                      <form
+                        onSubmit={(e) => {
+                          e.preventDefault();
+                          handleSaveEdit(item);
+                        }}
+                        className="flex flex-col gap-3"
+                      >
+                        <div className="flex flex-col gap-3">
+                          <Input value={editName} onChange={(e) => setEditName(e.target.value)} disabled={isPending} placeholder="Service Name (Optional)" />
+                          <Input value={editUrl} onChange={(e) => setEditUrl(e.target.value)} disabled={isPending} placeholder="URL" />
+                        </div>
+                        <div className="flex justify-end gap-2">
+                          <Button type="button" variant="outline" size="sm" onClick={() => setEditingId(null)} disabled={isPending}>
+                            Cancel
+                          </Button>
+                          <Button type="submit" size="sm" disabled={isPending || !editUrl.trim()}>
+                            {isPending ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <Check className="h-4 w-4 mr-1" />} Save
+                          </Button>
+                        </div>
+                      </form>
                     ) : (
-                      <Play className="h-4 w-4" />
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="overflow-hidden pr-4">
+                          <p className="font-medium truncate">
+                            {item.name || "Unnamed Source"}
+                          </p>
+                          <a
+                            href={item.url}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="text-sm text-muted-foreground hover:underline truncate block"
+                          >
+                            {item.url}
+                          </a>
+                        </div>
+
+                        <div className="flex items-center gap-2 shrink-0">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleEditInit(item)}
+                            disabled={isPending}
+                          >
+                            <Pencil className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant={item.isActive ? "outline" : "secondary"}
+                            size="sm"
+                            onClick={() => handleToggle(item.id, item.isActive)}
+                            disabled={isPending}
+                            title={item.isActive ? "Pause scraping" : "Resume scraping"}
+                          >
+                            {item.isActive ? (
+                              <Pause className="h-4 w-4" />
+                            ) : (
+                              <Play className="h-4 w-4" />
+                            )}
+                          </Button>
+                          <Button
+                            variant="destructive"
+                            size="sm"
+                            onClick={() => handleDelete(item.id)}
+                            disabled={isPending}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </div>
                     )}
-                  </Button>
-                  <Button
-                    variant="destructive"
-                    size="sm"
-                    onClick={() => handleDelete(item.id)}
-                    disabled={isPending}
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
-                </div>
+                  </div>
+                ))}
               </div>
-            )}
-          </div>
-        ))}
-      </div>
+            </details>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

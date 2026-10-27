@@ -49,6 +49,7 @@ function fixture() {
     "@/components/DashboardSkeleton": { DashboardSkeleton: () => null, JobListSkeleton: () => null },
     "@/components/JobCard": { JobCard: () => null },
     "@/lib/job-grouping": { groupJobs: (items: unknown[]) => items },
+    "@/lib/scraper-grouping": { groupScraperUrlsByPortal: () => [] },
   }).default;
   return { home, metadata, jobs, reads, suspense, jobQuery: () => jobQuery, categoryQuery: () => categoryQuery };
 }
