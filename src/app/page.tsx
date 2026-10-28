@@ -2,14 +2,24 @@ import { isAuthenticated } from "@/lib/auth";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { prisma } from "@/lib/prisma";
-import { Hash, Globe, MapPin, XCircle, ChevronDown } from "lucide-react";
+import {
+  Hash,
+  Globe,
+  MapPin,
+  XCircle,
+  ChevronDown,
+  Inbox,
+  Send,
+  Layers,
+} from "lucide-react";
 import { groupScraperUrlsByPortal, extractQueryLabel } from "@/lib/scraper-grouping";
 import { RunScraperButton } from "@/components/RunScraperButton";
 import { Suspense } from "react";
 import { DashboardSkeleton, JobListSkeleton } from "@/components/DashboardSkeleton";
 import { JobCard } from "@/components/JobCard";
+import { Pagination } from "@/components/Pagination";
 import { groupJobs } from "@/lib/job-grouping";
-import { type Job, type Category, type WorkPreference, type ScraperUrl } from "@prisma/client";
+import { type Job, type Category, type WorkPreference, type ScraperUrl, type ApplicationStatus } from "@prisma/client";
 
 type JobWithRelations = Job & {
   categories: Category[];
@@ -17,11 +27,29 @@ type JobWithRelations = Job & {
   scraperUrl: ScraperUrl | null;
 };
 
+const ITEMS_PER_PAGE = 20;
+
+function buildDashboardUrl({
+  category,
+  status,
+  page,
+}: {
+  category?: string;
+  status?: string;
+  page?: number;
+}) {
+  const parts: string[] = [];
+  if (category) parts.push(`category=${encodeURIComponent(category)}`);
+  if (status && status !== "inbox") parts.push(`status=${encodeURIComponent(status)}`);
+  if (page && page > 1) parts.push(`page=${page}`);
+  return parts.length > 0 ? `/?${parts.join("&")}` : "/";
+}
+
 // In the latest Next.js App Router, searchParams are read asynchronously
 export default async function Home({
   searchParams,
 }: {
-  searchParams: Promise<{ category?: string }>;
+  searchParams: Promise<{ category?: string; status?: string; page?: string }>;
 }) {
   const isLoggedIn = await isAuthenticated();
 
@@ -54,15 +82,36 @@ export default async function Home({
   // Unwrapping searchParams (required in newer Next.js versions)
   const params = await searchParams;
   const currentCategorySlug = params.category;
+  const rawStatus = (params.status || "inbox").toLowerCase();
+  const validStatuses = ["inbox", "applied", "rejected", "all"] as const;
+  const currentStatus = validStatuses.includes(rawStatus as (typeof validStatuses)[number])
+    ? (rawStatus as (typeof validStatuses)[number])
+    : "inbox";
+  const currentPage = Math.max(1, parseInt(params.page || "1", 10) || 1);
+
+  const categoryPart = currentCategorySlug ? `category:${currentCategorySlug}` : "all";
+  const suspenseKey = `${categoryPart}:status:${currentStatus}:page:${currentPage}`;
 
   return (
-    <Suspense key={currentCategorySlug ? `category:${currentCategorySlug}` : "all"} fallback={<DashboardSkeleton />}>
-      <Dashboard currentCategorySlug={currentCategorySlug} />
+    <Suspense key={suspenseKey} fallback={<DashboardSkeleton />}>
+      <Dashboard
+        currentCategorySlug={currentCategorySlug}
+        currentStatus={currentStatus}
+        currentPage={currentPage}
+      />
     </Suspense>
   );
 }
 
-async function Dashboard({ currentCategorySlug }: { currentCategorySlug?: string }) {
+async function Dashboard({
+  currentCategorySlug,
+  currentStatus,
+  currentPage,
+}: {
+  currentCategorySlug?: string;
+  currentStatus: string;
+  currentPage: number;
+}) {
   const [categories, workPreferences, scraperUrls] = await Promise.all([
     prisma.category.findMany({
       orderBy: { name: "asc" },
@@ -84,12 +133,32 @@ async function Dashboard({ currentCategorySlug }: { currentCategorySlug?: string
     ? categories.find((c) => c.slug === currentCategorySlug)
     : null;
 
+  // Build Prisma where clause based on status filter and category
+  const jobWhere: {
+    expiredAt?: null;
+    applicationStatus?: ApplicationStatus;
+    categories?: { some: { id: string } };
+  } = {};
+
+  if (activeCategory) {
+    jobWhere.categories = { some: { id: activeCategory.id } };
+  }
+
+  if (currentStatus === "applied") {
+    jobWhere.applicationStatus = "APPLIED";
+  } else if (currentStatus === "rejected") {
+    jobWhere.applicationStatus = "REJECTED";
+  } else if (currentStatus === "all") {
+    jobWhere.expiredAt = null;
+  } else {
+    // Default: Inbox (only INBOX status and non-expired/active)
+    jobWhere.applicationStatus = "INBOX";
+    jobWhere.expiredAt = null;
+  }
+
   // Await the lazy Prisma query inside JobList so the sidebar can stream first.
   const jobsPromise = prisma.job.findMany({
-    where: {
-      expiredAt: null,
-      ...(activeCategory ? { categories: { some: { id: activeCategory.id } } } : {}),
-    },
+    where: jobWhere,
     orderBy: { createdAt: "desc" },
     include: {
       categories: true,
@@ -97,6 +166,13 @@ async function Dashboard({ currentCategorySlug }: { currentCategorySlug?: string
       scraperUrl: true,
     }
   });
+
+  const statusTabs = [
+    { id: "inbox", label: "Inbox", icon: Inbox },
+    { id: "applied", label: "Applied", icon: Send },
+    { id: "rejected", label: "Rejected", icon: XCircle },
+    { id: "all", label: "All", icon: Layers },
+  ] as const;
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-4 gap-8 animate-in fade-in duration-500">
@@ -121,7 +197,10 @@ async function Dashboard({ currentCategorySlug }: { currentCategorySlug?: string
                 return (
                   <Link
                     key={cat.id}
-                    href={`/?category=${cat.slug}`}
+                    href={buildDashboardUrl({
+                      category: cat.slug,
+                      status: currentStatus,
+                    })}
                     className={`flex flex-col gap-1 px-3 py-2.5 rounded-md transition-colors border shadow-sm ${
                       isActive 
                         ? "bg-primary text-primary-foreground border-primary" 
@@ -237,22 +316,54 @@ async function Dashboard({ currentCategorySlug }: { currentCategorySlug?: string
       </aside>
 
       <div className="lg:col-span-3 space-y-6">
-        <div className="flex items-center justify-between">
-          <h1 className="text-3xl font-bold tracking-tight">
-            {activeCategory ? `Job Board: ${activeCategory.name}` : "Job Board: All"}
-          </h1>
-          {activeCategory && (
-            <Link href="/">
-              <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground">
-                <XCircle className="h-4 w-4 mr-2" />
-                Clear filter
-              </Button>
-            </Link>
-          )}
+        <div className="space-y-4">
+          <div className="flex flex-wrap items-center justify-between gap-4">
+            <h1 className="text-3xl font-bold tracking-tight">
+              {activeCategory ? `Job Board: ${activeCategory.name}` : "Job Board: All"}
+            </h1>
+            {activeCategory && (
+              <Link href={buildDashboardUrl({ status: currentStatus })}>
+                <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground">
+                  <XCircle className="h-4 w-4 mr-2" />
+                  Clear filter
+                </Button>
+              </Link>
+            )}
+          </div>
+
+          {/* Status Filter Tabs */}
+          <div className="flex items-center gap-1 p-1 bg-muted/60 border rounded-xl w-fit">
+            {statusTabs.map((tab) => {
+              const Icon = tab.icon;
+              const isActive = currentStatus === tab.id;
+              return (
+                <Link
+                  key={tab.id}
+                  href={buildDashboardUrl({
+                    category: currentCategorySlug,
+                    status: tab.id,
+                  })}
+                  className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs sm:text-sm font-medium transition-all ${
+                    isActive
+                      ? "bg-card text-foreground shadow-sm"
+                      : "text-muted-foreground hover:text-foreground hover:bg-card/40"
+                  }`}
+                >
+                  <Icon className="w-4 h-4" />
+                  <span>{tab.label}</span>
+                </Link>
+              );
+            })}
+          </div>
         </div>
 
-        <Suspense key={currentCategorySlug || "all"} fallback={<JobListSkeleton />}>
-          <JobList jobsPromise={jobsPromise} />
+        <Suspense key={`${currentCategorySlug || "all"}:${currentStatus}:${currentPage}`} fallback={<JobListSkeleton />}>
+          <JobList
+            jobsPromise={jobsPromise}
+            currentPage={currentPage}
+            currentCategorySlug={currentCategorySlug}
+            currentStatus={currentStatus}
+          />
         </Suspense>
       </div>
     </div>
@@ -261,8 +372,14 @@ async function Dashboard({ currentCategorySlug }: { currentCategorySlug?: string
 
 async function JobList({
   jobsPromise,
+  currentPage,
+  currentCategorySlug,
+  currentStatus,
 }: {
   jobsPromise: Promise<JobWithRelations[]>;
+  currentPage: number;
+  currentCategorySlug?: string;
+  currentStatus: string;
 }) {
   const jobs = await jobsPromise;
   const groupedJobs = groupJobs(jobs);
@@ -283,11 +400,36 @@ async function JobList({
     );
   }
 
+  const totalItems = groupedJobs.length;
+  const totalPages = Math.max(1, Math.ceil(totalItems / ITEMS_PER_PAGE));
+  const validPage = Math.min(Math.max(1, currentPage), totalPages);
+
+  const startIndex = (validPage - 1) * ITEMS_PER_PAGE;
+  const paginatedJobs = groupedJobs.slice(startIndex, startIndex + ITEMS_PER_PAGE);
+
   return (
-    <div className="grid grid-cols-1 gap-4">
-      {groupedJobs.map((job) => (
-        <JobCard key={job.id} job={job} now={now} />
-      ))}
+    <div className="space-y-6">
+      <div className="grid grid-cols-1 gap-4">
+        {paginatedJobs.map((job) => (
+          <JobCard key={job.id} job={job} now={now} />
+        ))}
+      </div>
+
+      {/* Reusable Pagination Component */}
+      <Pagination
+        currentPage={validPage}
+        totalPages={totalPages}
+        totalItems={totalItems}
+        pageSize={ITEMS_PER_PAGE}
+        itemName="offers"
+        getPageUrl={(targetPage) =>
+          buildDashboardUrl({
+            category: currentCategorySlug,
+            status: currentStatus,
+            page: targetPage,
+          })
+        }
+      />
     </div>
   );
 }

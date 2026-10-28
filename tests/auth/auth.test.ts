@@ -99,6 +99,7 @@ describe("Authentication and access control", () => {
       scraperUrl: { addScraperUrl: ["https://justjoin.it"], updateScraperUrl: ["id", "https://justjoin.it", "Test"], deleteScraperUrl: ["id"], toggleScraperUrl: ["id", true] },
       workPreference: { addWorkPreference: ["Remote", "remote"], updateWorkPreference: ["id", "Remote", "remote", true], deleteWorkPreference: ["id"], toggleWorkPreference: ["id", true] },
       scraper: { triggerScraperAction: [] },
+      job: { updateJobApplicationStatus: ["id", "APPLIED"] },
     };
     for (const [file, calls] of Object.entries(cases)) {
       const actions = loadSource(`src/app/actions/${file}.ts`, common) as Record<string, (...args: unknown[]) => Promise<unknown>>;
@@ -131,6 +132,7 @@ describe("Authentication and access control", () => {
       "@/components/JobCard": { JobCard: () => null },
       "@/lib/job-grouping": { groupJobs: (jobs: unknown[]) => jobs },
       "@/lib/scraper-grouping": { groupScraperUrlsByPortal: () => [] },
+      "@/components/Pagination": { Pagination: () => null },
     };
     const home = (loadSource("src/app/page.tsx", common) as typeof import("../../src/app/page")).default;
     const settings = (loadSource("src/app/settings/page.tsx", common) as typeof import("../../src/app/settings/page")).default;

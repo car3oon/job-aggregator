@@ -14,7 +14,7 @@ export default async function HistoryPage() {
 
   const history = await prisma.scrapeHistory.findMany({
     orderBy: { startedAt: "desc" },
-    take: 50, // Limit to last 50 runs to keep UI fast
+    take: 100, // Limit to recent runs to keep UI fast
   });
 
   return (

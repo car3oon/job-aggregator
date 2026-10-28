@@ -15,6 +15,7 @@ import {
 import { getTimeAgo, formatDate } from "@/lib/utils";
 import { useEscapeKey } from "@/hooks/useEscapeKey";
 import { Button } from "@/components/ui/button";
+import { Pagination } from "@/components/Pagination";
 
 export interface HistoryItem {
   id: string;
@@ -29,6 +30,7 @@ export interface HistoryItem {
 }
 
 const SCRAPER_WORKFLOW_URL = "https://github.com/car3oon/job-aggregator/actions/workflows/scraper.yml";
+const ITEMS_PER_PAGE = 15;
 
 function getSpecificRunUrl(logs: string | null): string | null {
   if (logs) {
@@ -55,9 +57,17 @@ function getStatusBadgeClass(status: string) {
 
 export function HistoryTable({ history }: { history: HistoryItem[] }) {
   const [selectedRun, setSelectedRun] = useState<HistoryItem | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
 
   // Close modal when pressing Escape key
   useEscapeKey(() => setSelectedRun(null), selectedRun !== null);
+
+  const totalItems = history.length;
+  const totalPages = Math.max(1, Math.ceil(totalItems / ITEMS_PER_PAGE));
+  const validPage = Math.min(Math.max(1, currentPage), totalPages);
+
+  const startIndex = (validPage - 1) * ITEMS_PER_PAGE;
+  const paginatedHistory = history.slice(startIndex, startIndex + ITEMS_PER_PAGE);
 
   const selectedDuration = selectedRun?.endedAt
     ? `${Math.round((new Date(selectedRun.endedAt).getTime() - new Date(selectedRun.startedAt).getTime()) / 1000)}s`
@@ -89,7 +99,7 @@ export function HistoryTable({ history }: { history: HistoryItem[] }) {
                   </td>
                 </tr>
               ) : (
-                history.map((run) => {
+                paginatedHistory.map((run) => {
                   const startedDate = new Date(run.startedAt);
                   const endedDate = run.endedAt ? new Date(run.endedAt) : null;
                   const durationStr = endedDate
@@ -150,6 +160,17 @@ export function HistoryTable({ history }: { history: HistoryItem[] }) {
             </tbody>
           </table>
         </div>
+
+        {/* Reusable Pagination Component */}
+        <Pagination
+          currentPage={validPage}
+          totalPages={totalPages}
+          totalItems={totalItems}
+          pageSize={ITEMS_PER_PAGE}
+          itemName="runs"
+          onPageChange={(page) => setCurrentPage(page)}
+          className="border-t px-6 py-4 bg-muted/20 border-border"
+        />
       </div>
 
       {/* Execution Logs Modal */}

@@ -12,6 +12,8 @@ export interface RelatedJobVariant {
   createdAt: Date;
   workPreferences: { id: string; name: string }[];
   categories: { id: string; name: string; slug: string }[];
+  applicationStatus?: "INBOX" | "APPLIED" | "REJECTED";
+  appliedAt?: Date | null;
 }
 
 export interface MinimalJob {
@@ -24,6 +26,8 @@ export interface MinimalJob {
   updatedAt: Date;
   categories?: { id: string; name: string; slug: string }[];
   workPreferences?: { id: string; name: string }[];
+  applicationStatus?: "INBOX" | "APPLIED" | "REJECTED";
+  appliedAt?: Date | null;
 }
 
 export interface GroupedJob {
@@ -37,6 +41,8 @@ export interface GroupedJob {
   workPreferences: { id: string; name: string }[];
   sources: JobSourceLink[];
   relatedVariants: RelatedJobVariant[];
+  applicationStatus: "INBOX" | "APPLIED" | "REJECTED";
+  appliedAt: Date | null;
 }
 
 export function normalizeCompany(company?: string | null): string {
@@ -178,6 +184,11 @@ export function groupJobs<T extends MinimalJob>(jobs: T[]): GroupedJob[] {
       }
     }
 
+    const appliedItem = items.find(item => item.applicationStatus === "APPLIED");
+    const rejectedItem = items.find(item => item.applicationStatus === "REJECTED");
+    const applicationStatus = appliedItem?.applicationStatus || rejectedItem?.applicationStatus || primary.applicationStatus || "INBOX";
+    const appliedAt = appliedItem?.appliedAt ? new Date(appliedItem.appliedAt) : primary.appliedAt ? new Date(primary.appliedAt) : null;
+
     levelAJobs.push({
       id: primary.id,
       title: primary.title,
@@ -189,6 +200,8 @@ export function groupJobs<T extends MinimalJob>(jobs: T[]): GroupedJob[] {
       workPreferences: Array.from(prefMap.values()),
       sources: Array.from(sourcesMap.values()),
       relatedVariants: [],
+      applicationStatus,
+      appliedAt,
     });
   }
 
@@ -216,6 +229,8 @@ export function groupJobs<T extends MinimalJob>(jobs: T[]): GroupedJob[] {
         createdAt: job.createdAt,
         workPreferences: job.workPreferences,
         categories: job.categories,
+        applicationStatus: job.applicationStatus,
+        appliedAt: job.appliedAt,
       });
     } else {
       finalGrouped.push(job);
