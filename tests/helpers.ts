@@ -41,6 +41,7 @@ function loadSource<T = Record<string, unknown>>(
     console: options.console ?? { log() {}, error() {} },
     Buffer,
     URL,
+    URLSearchParams,
     Date,
     setTimeout,
     clearTimeout,

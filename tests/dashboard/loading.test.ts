@@ -35,7 +35,7 @@ function fixture() {
   let categoryQuery: unknown;
   const suspense = Symbol("Suspense");
   const jsx = (type: unknown, props: Element["props"], key?: string) => ({ type, props, key });
-  const home = loadSource<{ default: (input: { searchParams: Promise<{ category?: string }> }) => Promise<Element> }>("src/app/page.tsx", {
+  const home = loadSource<{ default: (input: { searchParams: Promise<{ category?: string; status?: string; page?: string }> }) => Promise<Element> }>("src/app/page.tsx", {
     "@/lib/auth": { isAuthenticated: async () => true },
     "@/lib/prisma": { prisma: {
       category: { findMany: (query: unknown) => { reads.push("categories"); categoryQuery = query; return metadata.promise; } },
@@ -50,6 +50,7 @@ function fixture() {
     "@/components/JobCard": { JobCard: () => null },
     "@/lib/job-grouping": { groupJobs: (items: unknown[]) => items },
     "@/lib/scraper-grouping": { groupScraperUrlsByPortal: () => [] },
+    "@/components/Pagination": { Pagination: () => null },
   }).default;
   return { home, metadata, jobs, reads, suspense, jobQuery: () => jobQuery, categoryQuery: () => categoryQuery };
 }
@@ -75,7 +76,7 @@ describe("Dashboard loading", () => {
     context.metadata.resolve([{ id: "react-id", slug: "react", name: "React", keywords: [], excluded: [], _count: { jobs: 1 } }]);
     const dashboard = await pendingDashboard;
     assert.equal(dashboard.type, "div");
-    assert.deepEqual(JSON.parse(JSON.stringify(context.jobQuery())).where, { expiredAt: null, categories: { some: { id: "react-id" } } });
+    assert.deepEqual(JSON.parse(JSON.stringify(context.jobQuery())).where, { categories: { some: { id: "react-id" } }, applicationStatus: "INBOX", expiredAt: null });
     assert.deepEqual(JSON.parse(JSON.stringify(context.categoryQuery())).include._count.select.jobs.where, { expiredAt: null });
     const offersBoundary = findBoundary(dashboard, context.suspense);
     assert.ok(offersBoundary?.props.fallback);
@@ -109,6 +110,23 @@ describe("Dashboard loading", () => {
     context.metadata.resolve([]);
     await pending;
     context.jobs.resolve([]);
-    assert.deepEqual(JSON.parse(JSON.stringify(context.jobQuery())).where, { expiredAt: null });
+    assert.deepEqual(JSON.parse(JSON.stringify(context.jobQuery())).where, { applicationStatus: "INBOX", expiredAt: null });
+  });
+
+  test("status filtering passes applicationStatus to Prisma job query", async () => {
+    for (const [status, expected] of [
+      ["applied", { applicationStatus: "APPLIED" }],
+      ["rejected", { applicationStatus: "REJECTED" }],
+      ["all", { expiredAt: null }],
+      ["inbox", { applicationStatus: "INBOX", expiredAt: null }],
+    ] as const) {
+      const context = fixture();
+      const shell = await context.home({ searchParams: Promise.resolve({ status }) });
+      const pending = render(shell.props.children as Element);
+      context.metadata.resolve([]);
+      await pending;
+      context.jobs.resolve([]);
+      assert.deepEqual(JSON.parse(JSON.stringify(context.jobQuery())).where, expected);
+    }
   });
 });

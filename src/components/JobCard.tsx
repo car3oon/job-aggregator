@@ -1,12 +1,58 @@
 "use client";
 
-import { useState } from "react";
-import { Globe, Clock, MapPin, ChevronDown, ChevronUp, ExternalLink } from "lucide-react";
+import { useState, useTransition } from "react";
+import {
+  Globe,
+  Clock,
+  MapPin,
+  ChevronDown,
+  ChevronUp,
+  ExternalLink,
+  Send,
+  Check,
+  X,
+  RotateCcw,
+  Bookmark,
+} from "lucide-react";
 import type { GroupedJob } from "@/lib/job-grouping";
+import { updateJobApplicationStatus, type ApplicationStatus } from "@/app/actions/job";
 
 export function JobCard({ job, now }: { job: GroupedJob; now: number }) {
   const [showVariants, setShowVariants] = useState(false);
+  const [isPending, startTransition] = useTransition();
+  const [status, setStatus] = useState<ApplicationStatus>(
+    job.applicationStatus || "INBOX"
+  );
+  const [appliedAt, setAppliedAt] = useState<Date | string | null>(
+    job.appliedAt || null
+  );
+
   const isNew = now - new Date(job.createdAt).getTime() < 14 * 60 * 60 * 1000;
+
+  const appliedDateStr = appliedAt
+    ? new Intl.DateTimeFormat("en-GB", {
+        day: "numeric",
+        month: "short",
+        timeZone: "Europe/Warsaw",
+      }).format(new Date(appliedAt))
+    : null;
+
+  const handleStatusChange = (newStatus: ApplicationStatus) => {
+    const prevStatus = status;
+    const prevAppliedAt = appliedAt;
+    const newAppliedAt = newStatus === "APPLIED" ? new Date() : null;
+
+    setStatus(newStatus);
+    setAppliedAt(newAppliedAt);
+
+    startTransition(async () => {
+      const res = await updateJobApplicationStatus(job.id, newStatus);
+      if (res?.error) {
+        setStatus(prevStatus);
+        setAppliedAt(prevAppliedAt);
+      }
+    });
+  };
 
   return (
     <div className="bg-card hover:bg-accent/40 border rounded-xl p-5 shadow-sm transition-all hover:shadow-md">
@@ -25,6 +71,24 @@ export function JobCard({ job, now }: { job: GroupedJob; now: number }) {
             {isNew && (
               <span className="bg-green-500/10 text-green-600 dark:text-green-400 text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider animate-pulse">
                 New
+              </span>
+            )}
+            {status === "SAVED" && (
+              <span className="inline-flex items-center gap-1 bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20 text-xs font-semibold px-2.5 py-0.5 rounded-full">
+                <Bookmark className="w-3 h-3 fill-amber-500/30" />
+                Saved
+              </span>
+            )}
+            {status === "APPLIED" && (
+              <span className="inline-flex items-center gap-1 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 text-xs font-semibold px-2.5 py-0.5 rounded-full">
+                <Check className="w-3 h-3" />
+                Applied{appliedDateStr ? ` • ${appliedDateStr}` : ""}
+              </span>
+            )}
+            {status === "REJECTED" && (
+              <span className="inline-flex items-center gap-1 bg-destructive/10 text-destructive border border-destructive/20 text-xs font-semibold px-2.5 py-0.5 rounded-full">
+                <X className="w-3 h-3" />
+                Rejected
               </span>
             )}
           </div>
@@ -70,16 +134,73 @@ export function JobCard({ job, now }: { job: GroupedJob; now: number }) {
           </div>
         </div>
 
-        {/* Categories */}
-        <div className="flex flex-wrap justify-end gap-1.5 max-w-[40%] shrink-0">
-          {job.categories.map((cat) => (
-            <span
-              key={cat.id}
-              className="text-[10px] uppercase font-bold tracking-wider bg-muted text-muted-foreground px-2.5 py-1 rounded-full whitespace-nowrap"
-            >
-              {cat.name}
-            </span>
-          ))}
+        {/* Categories & Actions */}
+        <div className="flex flex-col items-end gap-2.5 shrink-0 max-w-[45%]">
+          {/* Categories */}
+          {job.categories.length > 0 && (
+            <div className="flex flex-wrap justify-end gap-1.5">
+              {job.categories.map((cat) => (
+                <span
+                  key={cat.id}
+                  className="text-[10px] uppercase font-bold tracking-wider bg-muted text-muted-foreground px-2.5 py-1 rounded-full whitespace-nowrap"
+                >
+                  {cat.name}
+                </span>
+              ))}
+            </div>
+          )}
+
+          {/* Status Actions */}
+          <div className="flex items-center gap-1.5">
+            {status !== "SAVED" && status !== "APPLIED" && (
+              <button
+                type="button"
+                disabled={isPending}
+                onClick={() => handleStatusChange("SAVED")}
+                className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-medium rounded-md border border-border bg-background hover:bg-amber-500/10 hover:text-amber-600 hover:border-amber-500/30 text-muted-foreground transition-all disabled:opacity-50 cursor-pointer shadow-xs"
+                title="Save for later"
+              >
+                <Bookmark className="w-3 h-3" />
+                <span>Save</span>
+              </button>
+            )}
+            {status !== "APPLIED" && (
+              <button
+                type="button"
+                disabled={isPending}
+                onClick={() => handleStatusChange("APPLIED")}
+                className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-medium rounded-md border border-border bg-background hover:bg-emerald-500/10 hover:text-emerald-600 hover:border-emerald-500/30 text-muted-foreground transition-all disabled:opacity-50 cursor-pointer shadow-xs"
+                title="Mark as Applied"
+              >
+                <Send className="w-3 h-3" />
+                <span>Applied</span>
+              </button>
+            )}
+            {status !== "REJECTED" && (
+              <button
+                type="button"
+                disabled={isPending}
+                onClick={() => handleStatusChange("REJECTED")}
+                className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-medium rounded-md border border-border bg-background hover:bg-destructive/10 hover:text-destructive hover:border-destructive/30 text-muted-foreground transition-all disabled:opacity-50 cursor-pointer shadow-xs"
+                title="Reject offer"
+              >
+                <X className="w-3 h-3" />
+                <span>Reject</span>
+              </button>
+            )}
+            {status !== "INBOX" && (
+              <button
+                type="button"
+                disabled={isPending}
+                onClick={() => handleStatusChange("INBOX")}
+                className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-medium rounded-md border border-border bg-background hover:bg-secondary text-muted-foreground transition-all disabled:opacity-50 cursor-pointer shadow-xs"
+                title="Move back to Inbox"
+              >
+                <RotateCcw className="w-3 h-3" />
+                <span>Inbox</span>
+              </button>
+            )}
+          </div>
         </div>
       </div>
 

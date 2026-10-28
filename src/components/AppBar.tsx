@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Briefcase, Settings, User } from "lucide-react";
+import { Briefcase, Settings, User, Bookmark } from "lucide-react";
 import { LogoutButton } from "./LogoutButton";
 import { isAuthenticated } from "@/lib/auth";
 
@@ -20,6 +20,14 @@ export async function AppBar() {
         <nav className="flex items-center gap-2 md:gap-4">
           {isLoggedIn ? (
             <>
+              <Link
+                href="/?status=saved"
+                className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
+                title="View Saved Offers"
+              >
+                <Bookmark className="h-4 w-4 text-amber-500" />
+                <span className="hidden sm:inline">Saved</span>
+              </Link>
               <Link
                 href="/settings"
                 className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"

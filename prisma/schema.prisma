@@ -7,20 +7,29 @@ datasource db {
 }
 
 model Job {
-  id              String           @id @default(uuid())
-  title           String
-  url             String           @unique
-  source          String           // e.g., "JustJoinIT"
-  company         String?          // The company name
-  categories      Category[]       // Many-to-many relation
-  workPreferences WorkPreference[] // Many-to-many relation
-  description     String?          @db.Text // Optional full description/content
-  createdAt       DateTime         @default(now())
-  updatedAt       DateTime         @updatedAt
-  expiredAt       DateTime?        // Confirmed inactive by the source portal; retained for recovery
-  
-  scraperUrlId    String?
-  scraperUrl      ScraperUrl?      @relation(fields: [scraperUrlId], references: [id], onDelete: SetNull)
+  id                String            @id @default(uuid())
+  title             String
+  url               String            @unique
+  source            String            // e.g., "JustJoinIT"
+  company           String?           // The company name
+  categories        Category[]        // Many-to-many relation
+  workPreferences   WorkPreference[]  // Many-to-many relation
+  description       String?           @db.Text // Optional full description/content
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+  expiredAt         DateTime?         // Confirmed inactive by the source portal; retained for recovery
+  applicationStatus ApplicationStatus @default(INBOX)
+  appliedAt         DateTime?
+
+  scraperUrlId      String?
+  scraperUrl        ScraperUrl?       @relation(fields: [scraperUrlId], references: [id], onDelete: SetNull)
+}
+
+enum ApplicationStatus {
+  INBOX
+  SAVED
+  APPLIED
+  REJECTED
 }
 
 model Category {

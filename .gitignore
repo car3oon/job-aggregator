@@ -40,7 +40,8 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
-# project plan
+# project plan & docs
 plan.md
+/docs/
 
 /src/generated/prisma
