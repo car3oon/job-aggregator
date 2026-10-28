@@ -27,6 +27,7 @@ model Job {
 
 enum ApplicationStatus {
   INBOX
+  SAVED
   APPLIED
   REJECTED
 }

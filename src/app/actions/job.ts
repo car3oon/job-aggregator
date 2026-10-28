@@ -4,7 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
 import { verifyAuth } from "@/lib/auth";
 
-export type ApplicationStatus = "INBOX" | "APPLIED" | "REJECTED";
+export type ApplicationStatus = "INBOX" | "SAVED" | "APPLIED" | "REJECTED";
 
 export async function updateJobApplicationStatus(
   jobId: string,
@@ -12,7 +12,7 @@ export async function updateJobApplicationStatus(
 ) {
   await verifyAuth();
 
-  if (!jobId || !["INBOX", "APPLIED", "REJECTED"].includes(status)) {
+  if (!jobId || !["INBOX", "SAVED", "APPLIED", "REJECTED"].includes(status)) {
     return { error: "Invalid parameters." };
   }
 

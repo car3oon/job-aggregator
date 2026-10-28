@@ -12,14 +12,15 @@ import {
   Check,
   X,
   RotateCcw,
+  Bookmark,
 } from "lucide-react";
 import type { GroupedJob } from "@/lib/job-grouping";
-import { updateJobApplicationStatus } from "@/app/actions/job";
+import { updateJobApplicationStatus, type ApplicationStatus } from "@/app/actions/job";
 
 export function JobCard({ job, now }: { job: GroupedJob; now: number }) {
   const [showVariants, setShowVariants] = useState(false);
   const [isPending, startTransition] = useTransition();
-  const [status, setStatus] = useState<"INBOX" | "APPLIED" | "REJECTED">(
+  const [status, setStatus] = useState<ApplicationStatus>(
     job.applicationStatus || "INBOX"
   );
   const [appliedAt, setAppliedAt] = useState<Date | string | null>(
@@ -36,7 +37,7 @@ export function JobCard({ job, now }: { job: GroupedJob; now: number }) {
       }).format(new Date(appliedAt))
     : null;
 
-  const handleStatusChange = (newStatus: "INBOX" | "APPLIED" | "REJECTED") => {
+  const handleStatusChange = (newStatus: ApplicationStatus) => {
     const prevStatus = status;
     const prevAppliedAt = appliedAt;
     const newAppliedAt = newStatus === "APPLIED" ? new Date() : null;
@@ -70,6 +71,12 @@ export function JobCard({ job, now }: { job: GroupedJob; now: number }) {
             {isNew && (
               <span className="bg-green-500/10 text-green-600 dark:text-green-400 text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider animate-pulse">
                 New
+              </span>
+            )}
+            {status === "SAVED" && (
+              <span className="inline-flex items-center gap-1 bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20 text-xs font-semibold px-2.5 py-0.5 rounded-full">
+                <Bookmark className="w-3 h-3 fill-amber-500/30" />
+                Saved
               </span>
             )}
             {status === "APPLIED" && (
@@ -145,6 +152,18 @@ export function JobCard({ job, now }: { job: GroupedJob; now: number }) {
 
           {/* Status Actions */}
           <div className="flex items-center gap-1.5">
+            {status !== "SAVED" && status !== "APPLIED" && (
+              <button
+                type="button"
+                disabled={isPending}
+                onClick={() => handleStatusChange("SAVED")}
+                className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-medium rounded-md border border-border bg-background hover:bg-amber-500/10 hover:text-amber-600 hover:border-amber-500/30 text-muted-foreground transition-all disabled:opacity-50 cursor-pointer shadow-xs"
+                title="Save for later"
+              >
+                <Bookmark className="w-3 h-3" />
+                <span>Save</span>
+              </button>
+            )}
             {status !== "APPLIED" && (
               <button
                 type="button"

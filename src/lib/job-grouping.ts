@@ -12,7 +12,7 @@ export interface RelatedJobVariant {
   createdAt: Date;
   workPreferences: { id: string; name: string }[];
   categories: { id: string; name: string; slug: string }[];
-  applicationStatus?: "INBOX" | "APPLIED" | "REJECTED";
+  applicationStatus?: "INBOX" | "SAVED" | "APPLIED" | "REJECTED";
   appliedAt?: Date | null;
 }
 
@@ -26,7 +26,7 @@ export interface MinimalJob {
   updatedAt: Date;
   categories?: { id: string; name: string; slug: string }[];
   workPreferences?: { id: string; name: string }[];
-  applicationStatus?: "INBOX" | "APPLIED" | "REJECTED";
+  applicationStatus?: "INBOX" | "SAVED" | "APPLIED" | "REJECTED";
   appliedAt?: Date | null;
 }
 
@@ -41,7 +41,7 @@ export interface GroupedJob {
   workPreferences: { id: string; name: string }[];
   sources: JobSourceLink[];
   relatedVariants: RelatedJobVariant[];
-  applicationStatus: "INBOX" | "APPLIED" | "REJECTED";
+  applicationStatus: "INBOX" | "SAVED" | "APPLIED" | "REJECTED";
   appliedAt: Date | null;
 }
 

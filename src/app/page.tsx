@@ -11,6 +11,7 @@ import {
   Inbox,
   Send,
   Layers,
+  Bookmark,
 } from "lucide-react";
 import { groupScraperUrlsByPortal, extractQueryLabel } from "@/lib/scraper-grouping";
 import { RunScraperButton } from "@/components/RunScraperButton";
@@ -83,7 +84,7 @@ export default async function Home({
   const params = await searchParams;
   const currentCategorySlug = params.category;
   const rawStatus = (params.status || "inbox").toLowerCase();
-  const validStatuses = ["inbox", "applied", "rejected", "all"] as const;
+  const validStatuses = ["inbox", "saved", "applied", "rejected", "all"] as const;
   const currentStatus = validStatuses.includes(rawStatus as (typeof validStatuses)[number])
     ? (rawStatus as (typeof validStatuses)[number])
     : "inbox";
@@ -144,7 +145,9 @@ async function Dashboard({
     jobWhere.categories = { some: { id: activeCategory.id } };
   }
 
-  if (currentStatus === "applied") {
+  if (currentStatus === "saved") {
+    jobWhere.applicationStatus = "SAVED";
+  } else if (currentStatus === "applied") {
     jobWhere.applicationStatus = "APPLIED";
   } else if (currentStatus === "rejected") {
     jobWhere.applicationStatus = "REJECTED";
@@ -169,6 +172,7 @@ async function Dashboard({
 
   const statusTabs = [
     { id: "inbox", label: "Inbox", icon: Inbox },
+    { id: "saved", label: "Saved", icon: Bookmark },
     { id: "applied", label: "Applied", icon: Send },
     { id: "rejected", label: "Rejected", icon: XCircle },
     { id: "all", label: "All", icon: Layers },
@@ -387,6 +391,48 @@ async function JobList({
   const now = Date.now();
 
   if (groupedJobs.length === 0) {
+    if (currentStatus === "saved") {
+      return (
+        <div className="bg-card border rounded-xl p-12 text-center shadow-sm">
+          <h3 className="text-xl font-semibold mb-2">No saved jobs yet</h3>
+          <p className="text-muted-foreground mb-6 max-w-md mx-auto">
+            Bookmark interesting offers in your Inbox using the &quot;Save&quot; action to review and apply later.
+          </p>
+          <Link href={buildDashboardUrl({ category: currentCategorySlug, status: "inbox" })}>
+            <Button variant="outline">Browse Inbox</Button>
+          </Link>
+        </div>
+      );
+    }
+
+    if (currentStatus === "applied") {
+      return (
+        <div className="bg-card border rounded-xl p-12 text-center shadow-sm">
+          <h3 className="text-xl font-semibold mb-2">No applied jobs yet</h3>
+          <p className="text-muted-foreground mb-6 max-w-md mx-auto">
+            Once you submit your application, mark offers as &quot;Applied&quot; to track your progress here.
+          </p>
+          <Link href={buildDashboardUrl({ category: currentCategorySlug, status: "inbox" })}>
+            <Button variant="outline">Browse Inbox</Button>
+          </Link>
+        </div>
+      );
+    }
+
+    if (currentStatus === "rejected") {
+      return (
+        <div className="bg-card border rounded-xl p-12 text-center shadow-sm">
+          <h3 className="text-xl font-semibold mb-2">No rejected jobs</h3>
+          <p className="text-muted-foreground mb-6 max-w-md mx-auto">
+            Offers you dismiss will be moved here so they don&apos;t clutter your Inbox.
+          </p>
+          <Link href={buildDashboardUrl({ category: currentCategorySlug, status: "inbox" })}>
+            <Button variant="outline">Browse Inbox</Button>
+          </Link>
+        </div>
+      );
+    }
+
     return (
       <div className="bg-card border rounded-xl p-12 text-center shadow-sm">
         <h3 className="text-xl font-semibold mb-2">No jobs found</h3>
