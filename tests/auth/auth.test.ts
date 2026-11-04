@@ -95,7 +95,7 @@ describe("Authentication and access control", () => {
       "@/scripts/scraper/engine": {},
     };
     const cases: Record<string, Record<string, unknown[]>> = {
-      category: { addCategory: ["Test", "react"], updateCategory: ["id", "Test", "react"], deleteCategory: ["id"] },
+      category: { addCategory: ["Test", "react"], updateCategory: ["id", "Test", "react"], deleteCategory: ["id"], cloneCategory: ["id"] },
       scraperUrl: { addScraperUrl: ["https://justjoin.it"], updateScraperUrl: ["id", "https://justjoin.it", "Test"], deleteScraperUrl: ["id"], toggleScraperUrl: ["id", true] },
       workPreference: { addWorkPreference: ["Remote", "remote"], updateWorkPreference: ["id", "Remote", "remote", true], deleteWorkPreference: ["id"], toggleWorkPreference: ["id", true] },
       scraper: { triggerScraperAction: [] },
