@@ -2,12 +2,12 @@
 
 import { useId, useState, useTransition } from "react";
 import { type Category } from "@prisma/client";
-import { addCategory, deleteCategory, updateCategory } from "@/app/actions/category";
+import { addCategory, deleteCategory, updateCategory, cloneCategory } from "@/app/actions/category";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
-import { Trash2, Loader2, Hash, Pencil, Check, Ban } from "lucide-react";
+import { Trash2, Loader2, Hash, Pencil, Check, Ban, Copy } from "lucide-react";
 import { toast } from "@/components/ui/toast";
 import { useEscapeKey } from "@/hooks/useEscapeKey";
 
@@ -23,6 +23,7 @@ export function CategoriesManager({
   const [isPending, startTransition] = useTransition();
 
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [cloningId, setCloningId] = useState<string | null>(null);
   const [editName, setEditName] = useState("");
   const [editKeywords, setEditKeywords] = useState("");
   const [editExcluded, setEditExcluded] = useState("");
@@ -53,6 +54,22 @@ export function CategoriesManager({
         toast.add({ type: "error", title: "Error", description: result.error });
       } else {
         toast.add({ type: "success", title: "Success", description: "Category deleted!" });
+      }
+    });
+  };
+
+  const handleClone = (id: string) => {
+    setCloningId(id);
+    startTransition(async () => {
+      try {
+        const result = await cloneCategory(id);
+        if (result?.error) {
+          toast.add({ type: "error", title: "Error", description: result.error });
+        } else {
+          toast.add({ type: "success", title: "Success", description: "Category cloned successfully!" });
+        }
+      } finally {
+        setCloningId(null);
       }
     });
   };
@@ -199,10 +216,38 @@ export function CategoriesManager({
                 </div>
 
                 <div className="flex items-center gap-2 shrink-0">
-                  <Button variant="outline" size="sm" onClick={() => handleEditInit(cat)} disabled={isPending}>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handleClone(cat.id)}
+                    disabled={isPending}
+                    title="Clone category"
+                    aria-label={`Clone ${cat.name}`}
+                  >
+                    {cloningId === cat.id ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Copy className="h-4 w-4" />
+                    )}
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handleEditInit(cat)}
+                    disabled={isPending}
+                    title="Edit category"
+                    aria-label={`Edit ${cat.name}`}
+                  >
                     <Pencil className="h-4 w-4" />
                   </Button>
-                  <Button variant="destructive" size="sm" onClick={() => handleDelete(cat.id)} disabled={isPending}>
+                  <Button
+                    variant="destructive"
+                    size="sm"
+                    onClick={() => handleDelete(cat.id)}
+                    disabled={isPending}
+                    title="Delete category"
+                    aria-label={`Delete ${cat.name}`}
+                  >
                     <Trash2 className="h-4 w-4" />
                   </Button>
                 </div>

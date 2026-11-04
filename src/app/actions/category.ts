@@ -82,3 +82,96 @@ export async function updateCategory(id: string, name: string, keywordsStr: stri
     return { error: "Failed to update category. Name might conflict." };
   }
 }
+
+function getCloneBaseName(name: string): string {
+  const match = name.match(/^(.*?)(?:\s+\(copy(?:\s+\d+)?\))$/i);
+  return match && match[1].trim() ? match[1].trim() : name.trim();
+}
+
+function generateCloneNameAndSlug(
+  baseName: string,
+  existingNames: Set<string>,
+  existingSlugs: Set<string>
+): { name: string; slug: string } {
+  let counter = 1;
+  while (true) {
+    const candidateName = counter === 1 ? `${baseName} (Copy)` : `${baseName} (Copy ${counter})`;
+    const candidateSlug =
+      candidateName
+        .trim()
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, "-")
+        .replace(/^-+|-+$/g, "") || "category-copy";
+
+    if (!existingNames.has(candidateName.toLowerCase()) && !existingSlugs.has(candidateSlug.toLowerCase())) {
+      return { name: candidateName, slug: candidateSlug };
+    }
+    counter++;
+  }
+}
+
+export async function cloneCategory(id: string) {
+  await verifyAuth();
+  if (!id) return { error: "Category ID is required." };
+
+  for (let attempt = 0; attempt < 3; attempt++) {
+    try {
+      const cloned = await prisma.$transaction(async tx => {
+        const original = await tx.category.findUnique({
+          where: { id },
+        });
+
+        if (!original) {
+          throw new Error("Category not found.");
+        }
+
+        const allCategories = await tx.category.findMany({
+          select: { name: true, slug: true },
+        });
+
+        const existingNames = new Set(allCategories.map(c => c.name.toLowerCase()));
+        const existingSlugs = new Set(allCategories.map(c => c.slug.toLowerCase()));
+
+        const baseName = getCloneBaseName(original.name);
+        const { name: newName, slug: newSlug } = generateCloneNameAndSlug(baseName, existingNames, existingSlugs);
+
+        const jobs = await tx.job.findMany({
+          select: { id: true, title: true, description: true },
+        });
+
+        const matchingJobs = jobs.filter(job =>
+          matchesCategory(`${job.title} ${job.description ?? ""}`, {
+            keywords: original.keywords,
+            excluded: original.excluded,
+          })
+        );
+
+        return await tx.category.create({
+          data: {
+            name: newName,
+            slug: newSlug,
+            keywords: [...original.keywords],
+            excluded: [...original.excluded],
+            ...(original.icon ? { icon: original.icon } : {}),
+            jobs: { connect: matchingJobs.map(job => ({ id: job.id })) },
+          },
+        });
+      });
+
+      revalidatePath("/settings");
+      revalidatePath("/");
+      return { success: true, category: cloned };
+    } catch (error) {
+      if (error instanceof Error && error.message === "Category not found.") {
+        return { error: "Category not found." };
+      }
+      // Retry on unique constraint collision from concurrent requests
+      if (attempt < 2) {
+        continue;
+      }
+      return { error: "Failed to clone category." };
+    }
+  }
+
+  return { error: "Failed to clone category." };
+}
