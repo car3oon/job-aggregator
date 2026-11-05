@@ -1,22 +1,30 @@
 # Job Aggregator
 
-A personal job offer aggregator and dashboard.
+A personal tech job offer aggregator, deduplicator, and management dashboard with an AI Assistant.
 
 ## Features
 
-- **Job Sources:** Supports JustJoinIT and Pracuj.pl via Playwright, and No Fluff Jobs via HTTP and Cheerio.
-- **Smart Filtering Engine:** Parses raw job text against keyword rules (using strict AND `+` or OR `,` operators) and exclusions to automatically categorize jobs.
-- **Protected Dashboard:** The entire application is secured via a single-tenant master password.
-- **Dynamic Settings:** Manage job categories, work preferences, and scraper URLs directly from the `/settings` UI with inline editing.
-- **Database:** Relational data architecture powered by Postgres and Prisma ORM.
+- **Job Sources:** Collects and parses tech job listings from **Pracuj.pl**, **No Fluff Jobs**, and **Theprotocol.it**.
+- **Smart Grouping & Deduplication:** Merges identical postings across multiple portals (Level A) and groups related title variants from the same employer (Level B).
+- **Rule-Based Categorization:** Automatically categorizes jobs against user-defined keyword rules with strict AND (`+`), OR (`,`), and exclusion filters.
+- **Application Tracking:** Track offer progress with statuses (`INBOX`, `SAVED`, `APPLIED`, `REJECTED`) and timestamps.
+- **AI Assistant:** In-app conversational assistant powered by the **Vercel AI SDK** and **Google Gemini**:
+  - Natural language search (e.g. *"Show recent React jobs"*, *"What jobs did I save?"*).
+  - One-click mutations directly inside the chat (Save, Apply, Reject, Reset).
+  - Scraper run details and platform statistics.
+  - Interactive job cards with optimistic updates.
+- **Dynamic Settings:** Manage job categories, work preferences, scraper target URLs, and AI model settings directly from `/settings`.
+- **Protected Dashboard:** Single-tenant authentication secured with cryptographic session cookies and a master password.
+- **Database Architecture:** Relational data storage powered by PostgreSQL and Prisma ORM 7.
 
 ## Tech Stack
 
-- **Framework:** Next.js (App Router)
-- **Scraper Engine:** Playwright (JustJoinIT, Pracuj.pl) + native fetch (No Fluff Jobs) + Cheerio (No Fluff Jobs, Pracuj.pl)
-- **Styling:** Tailwind CSS + shadcn/ui + lucide-react
-- **ORM:** Prisma ORM
-- **Database:** Postgres
+- **Framework:** Next.js (App Router, Turbopack, React Server Components)
+- **AI Engine:** Vercel AI SDK (`ai` v7 + `@ai-sdk/react` + `@ai-sdk/google`)
+- **Scraper Engine:** Playwright (Pracuj.pl, Theprotocol.it) + native fetch & Cheerio (No Fluff Jobs)
+- **Styling:** Tailwind CSS + Base UI primitives + `lucide-react`
+- **ORM:** Prisma ORM 7 with PostgreSQL adapter (`@prisma/adapter-pg`)
+- **Database:** PostgreSQL
 
 ## Getting Started
 
@@ -25,20 +33,28 @@ A personal job offer aggregator and dashboard.
    pnpm install
    ```
 
-2. Install Playwright browsers (Required for JustJoinIT and Pracuj.pl):
+2. Install Playwright browsers (required for Pracuj.pl and Theprotocol.it scrapers):
    ```bash
    pnpm exec playwright install chromium
    ```
 
 3. Setup Environment Variables:
-   Create a `.env.local` file with your database URL and master password:
+   Create a `.env.local` file with your database URL, master password, session secret, and Google Gemini API key:
    ```env
    DATABASE_URL="postgres://..."
    ADMIN_PASSWORD="your-password"
    SESSION_SECRET="replace-with-a-random-secret-of-at-least-32-bytes"
+
+   # AI Assistant (Google Gemini)
+   GOOGLE_GENERATIVE_AI_API_KEY="AIzaSy..."
+   # Optional: defaults to gemini-flash-lite-latest (or gemini-3.5-flash)
+   GEMINI_MODEL="gemini-flash-lite-latest"
    ```
 
-   Generate a session secret with `pnpm exec node -e "console.log(require('node:crypto').randomBytes(32).toString('hex'))"`.
+   Generate a session secret with:
+   ```bash
+   pnpm exec node -e "console.log(require('node:crypto').randomBytes(32).toString('hex'))"
+   ```
    Set `SESSION_SECRET` in your deployment environment as well. Keep it private and stable across deployments.
    Sessions expire after 30 days. Changing `SESSION_SECRET` or `ADMIN_PASSWORD` invalidates existing sessions.
    Cookies from older versions are rejected; sign in again after upgrading.
@@ -49,39 +65,41 @@ A personal job offer aggregator and dashboard.
    pnpm exec prisma db push
    ```
 
-5. Run the web dashboard:
+5. Run the development server:
    ```bash
    pnpm dev
    ```
 
 ## Running the Scraper
 
-Add an active source in **Settings → Scraper URLs**. Supported domains are `justjoin.it`, `nofluffjobs.com` and `pracuj.pl`.
+Add active scraper targets in **Settings → Scraper Targets**. Supported domains:
+- `pracuj.pl`
+- `nofluffjobs.com`
+- `theprotocol.it`
 
-Use the dashboard's scraper button to start a manual GitHub Actions run. Push scraper changes to `main` before launching it, since Actions runs the repository version.
-You can also run the scraper locally:
-
+Trigger a manual scrape directly from the dashboard button, or execute locally via CLI:
 ```bash
 pnpm dlx tsx src/scripts/scraper/run.ts
 ```
 
 ## Running Tests
 
-Use Node.js 24 or newer to run the TypeScript regression tests with Node's built-in test runner:
-
+Run the full TypeScript test suite using Node.js built-in test runner:
 ```bash
 pnpm test
 ```
 
-Tests are grouped by feature, with named suites in the output:
+Tests can also be executed by scope:
 
-| Directory | Scope | Command |
+| Scope | Command | Description |
 | --- | --- | --- |
-| `tests/auth/` | Sessions, login and access control | `pnpm test:auth` |
-| `tests/scraper/` | Scraper runner, source adapters and filtering | `pnpm test:scraper` |
-| `tests/polling/` | Status monitoring, timeouts and cleanup | `pnpm test:polling` |
+| Full Suite | `pnpm test` | Runs all unit and integration tests |
+| AI Assistant | `pnpm exec node --test "tests/ai-assistant.test.ts"` | Backend tools, API route handler, and UI components |
+| Auth | `pnpm test:auth` | Sessions, login verification, and route proxies |
+| Scraper | `pnpm test:scraper` | Adapters, pagination, grouping, and filtering |
+| Polling | `pnpm test:polling` | Scraper monitoring, timeouts, and status updates |
 
-Shared test utilities remain in `tests/helpers.ts`, and subprocess fixtures in `tests/fixtures/`.
-The regression test job in CI runs each group as a separate step. Tests use local fixtures and boundary mocks, without a database, GitHub credentials or live job board requests.
-
-Run `pnpm typecheck` to check types in both the application and the test files.
+Run `pnpm check` to execute TypeScript type checking (`tsc --noEmit`) and ESLint:
+```bash
+pnpm check
+```

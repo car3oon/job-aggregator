@@ -127,6 +127,7 @@ describe("Authentication and access control", () => {
       "@/components/DashboardSkeleton": {},
       "@/components/SettingsTabs": {},
       "@/components/CategoriesManager": {}, "@/components/ScraperUrlsManager": {},
+      "@/components/AiAssistantSettings": {},
       "@/components/WorkPreferencesManager": {}, "@/components/ui/tabs": {},
       "@/components/HistoryTable": {},
       "@/components/JobCard": { JobCard: () => null },

@@ -6,7 +6,8 @@ import { ScraperUrlsManager } from "@/components/ScraperUrlsManager";
 import { WorkPreferencesManager } from "@/components/WorkPreferencesManager";
 import { TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { SettingsTabs } from "@/components/SettingsTabs";
-import { Hash, MapPin, Globe } from "lucide-react";
+import { AiAssistantSettings } from "@/components/AiAssistantSettings";
+import { Hash, MapPin, Globe, Sparkles } from "lucide-react";
 
 export default async function SettingsPage() {
   if (!(await isAuthenticated())) {
@@ -24,6 +25,18 @@ export default async function SettingsPage() {
       orderBy: { createdAt: "desc" },
     }),
   ]);
+
+  const aiApiKey =
+    process.env.GOOGLE_GENERATIVE_AI_API_KEY || process.env.GEMINI_API_KEY;
+  const isAiConfigured = Boolean(aiApiKey && aiApiKey.trim());
+  const maskedApiKey =
+    aiApiKey && aiApiKey.length > 8
+      ? `${aiApiKey.slice(0, 4)}...${aiApiKey.slice(-4)}`
+      : null;
+  const aiModel =
+    process.env.GEMINI_MODEL ||
+    process.env.AI_MODEL ||
+    "gemini-flash-lite-latest";
 
   return (
     <div className="space-y-8 animate-in fade-in duration-300">
@@ -57,6 +70,13 @@ export default async function SettingsPage() {
             >
               <Globe className="w-4 h-4 shrink-0" />
               <span>Scraper Targets</span>
+            </TabsTrigger>
+            <TabsTrigger
+              value="assistant"
+              className="justify-start gap-2.5 px-3 py-2.5 rounded-lg text-sm font-medium data-active:bg-background data-active:text-foreground data-active:shadow-sm text-muted-foreground hover:text-foreground transition-all w-full text-left"
+            >
+              <Sparkles className="w-4 h-4 shrink-0 text-primary" />
+              <span>AI Assistant</span>
             </TabsTrigger>
           </TabsList>
         </aside>
@@ -95,6 +115,22 @@ export default async function SettingsPage() {
                 </p>
               </div>
               <ScraperUrlsManager initialUrls={scraperUrls} />
+            </div>
+          </TabsContent>
+
+          <TabsContent value="assistant" className="space-y-4 m-0 outline-none">
+            <div className="bg-card text-card-foreground rounded-xl border shadow-sm p-6">
+              <div className="mb-6">
+                <h2 className="text-xl font-semibold">AI Assistant Settings</h2>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Configure the Google Gemini model and credentials for the conversational assistant.
+                </p>
+              </div>
+              <AiAssistantSettings
+                isConfigured={isAiConfigured}
+                maskedApiKey={maskedApiKey}
+                currentModel={aiModel}
+              />
             </div>
           </TabsContent>
         </div>
