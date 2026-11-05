@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { AppBar } from "@/components/AppBar";
 import { Toaster } from "@/components/ui/toast";
+import { ChatWidgetServer } from "@/components/chat/ChatWidgetServer";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -32,6 +33,9 @@ export default function RootLayout({
 
         {/* Mount the UI toaster globally */}
         <Toaster />
+
+        {/* AI Assistant widget for authenticated users */}
+        <ChatWidgetServer />
       </body>
     </html>
   );
