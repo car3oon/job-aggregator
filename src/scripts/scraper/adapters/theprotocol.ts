@@ -120,10 +120,19 @@ export const theProtocolAdapter: ScraperAdapter = {
     const browser = await chromium.launch({
       headless: isHeadless,
       channel: "chromium",
+      args: ["--disable-blink-features=AutomationControlled"],
     });
 
     try {
-      const page = await browser.newPage({ locale: "pl-PL" });
+      const isLinux = process.platform === "linux";
+      const platformDesc = isLinux ? "X11; Linux x86_64" : "Macintosh; Intel Mac OS X 10_15_7";
+      const browserVersion = typeof browser.version === "function" ? browser.version() : "156.0.8078.4";
+      const userAgent = `Mozilla/5.0 (${platformDesc}) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/${browserVersion} Safari/537.36`;
+      const page = await browser.newPage({
+        locale: "pl-PL",
+        userAgent,
+        viewport: { width: 1920, height: 1080 },
+      });
       let interceptedOffers: unknown = null;
 
       page.on("response", async (res) => {

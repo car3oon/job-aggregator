@@ -44,4 +44,7 @@ next-env.d.ts
 plan.md
 /docs/
 
+# temporary agent scripts
+.pi/scripts/run-*-worker.sh
+
 /src/generated/prisma

@@ -119,7 +119,9 @@ export const pracujAdapter: ScraperAdapter = {
     const url = getPracujPageUrl(value, 1);
     // GitHub Actions runs headed Chromium under Xvfb for Pracuj.pl.
     const browser = await chromium.launch({
-      headless: process.env.PRACUJ_HEADLESS !== "false", channel: "chromium",
+      headless: process.env.PRACUJ_HEADLESS !== "false",
+      channel: "chromium",
+      args: ["--disable-blink-features=AutomationControlled"],
     });
     try {
       const page = await browser.newPage({ locale: "pl-PL" });

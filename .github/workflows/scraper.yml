@@ -42,4 +42,4 @@ jobs:
           TRIGGER_SOURCE: ${{ github.event_name }}
           PRACUJ_HEADLESS: "false"
           THEPROTOCOL_HEADLESS: "false"
-        run: xvfb-run --auto-servernum pnpm dlx tsx src/scripts/scraper/run.ts
+        run: xvfb-run --auto-servernum --server-args="-screen 0 1920x1080x24" pnpm dlx tsx src/scripts/scraper/run.ts

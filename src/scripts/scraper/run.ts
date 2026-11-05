@@ -190,6 +190,9 @@ async function run() {
     }
 
     // Only successful sources with an explicit offer-status checker can change availability.
+    if (successfulAdapters.size > 0) {
+      appendLog(`\n🔄 --- Verifying saved offer availability ---`);
+    }
     for (const adapter of successfulAdapters) {
       if (!adapter.getStatus) continue;
       try {
