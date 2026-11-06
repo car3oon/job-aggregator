@@ -17,6 +17,31 @@ const adapters: ScraperAdapter[] = [
   theProtocolAdapter,
 ];
 
+function getSelectedAdapters(): ScraperAdapter[] {
+  const configuredSources = process.env.SCRAPER_SOURCES;
+  if (configuredSources === undefined) return adapters;
+
+  const requestedSources = [...new Set(
+    configuredSources
+      .split(",")
+      .map(source => source.trim().toLowerCase())
+      .filter(Boolean)
+  )];
+  if (requestedSources.length === 0) {
+    throw new Error("SCRAPER_SOURCES must contain one or more adapter domains or source names.");
+  }
+
+  const matchesSource = (adapter: ScraperAdapter, source: string) =>
+    adapter.domain.toLowerCase() === source || adapter.sourceName.toLowerCase() === source;
+  const unknownSources = requestedSources.filter(source => !adapters.some(adapter => matchesSource(adapter, source)));
+  if (unknownSources.length > 0) {
+    const validSources = adapters.map(adapter => adapter.domain).join(", ");
+    throw new Error(`Unknown SCRAPER_SOURCES value(s): ${unknownSources.join(", ")}. Use: ${validSources}.`);
+  }
+
+  return adapters.filter(adapter => requestedSources.some(source => matchesSource(adapter, source)));
+}
+
 function getPracujOfferId(url: string): string | null {
   try {
     return new URL(url).pathname.match(/,oferta,(\d+)\/?$/)?.[1] ?? null;
@@ -26,8 +51,9 @@ function getPracujOfferId(url: string): string | null {
 }
 
 async function run() {
-  const { prisma } = await import("../../lib/prisma");
   console.log("🚀 Starting Job Aggregator Scraper...");
+  const selectedAdapters = getSelectedAdapters();
+  const { prisma } = await import("../../lib/prisma");
 
   // Determine trigger source
   const triggerEnv = process.env.TRIGGER_SOURCE || "MANUAL";
@@ -75,6 +101,7 @@ async function run() {
     }
 
     appendLog(`📋 Loaded ${targets.length} targets, ${categories.length} categories, ${preferences.length} work preferences.`);
+    appendLog(`🔧 Selected sources: ${selectedAdapters.map(adapter => adapter.sourceName).join(", ")}.`);
 
     const successfulAdapters = new Set<ScraperAdapter>();
     for (const target of targets) {
@@ -84,6 +111,11 @@ async function run() {
 
         if (!adapter) {
           appendLog(`⏭️ No adapter for ${urlObj.hostname}. Skipping...`);
+          continue;
+        }
+
+        if (!selectedAdapters.includes(adapter)) {
+          appendLog(`⏭️ Source [${adapter.sourceName}] excluded by SCRAPER_SOURCES. Skipping target.`);
           continue;
         }
 

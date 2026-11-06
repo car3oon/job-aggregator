@@ -4,7 +4,7 @@ A personal tech job offer aggregator, deduplicator, and management dashboard wit
 
 ## Features
 
-- **Job Sources:** Collects and parses tech job listings from **Pracuj.pl**, **No Fluff Jobs**, and **Theprotocol.it**.
+- **Job Sources:** Collects and parses tech job listings from **JustJoinIT**, **Pracuj.pl**, **No Fluff Jobs**, and **Theprotocol.it**.
 - **Smart Grouping & Deduplication:** Merges identical postings across multiple portals (Level A) and groups related title variants from the same employer (Level B).
 - **Rule-Based Categorization:** Automatically categorizes jobs against user-defined keyword rules with strict AND (`+`), OR (`,`), and exclusion filters.
 - **Application Tracking:** Track offer progress with statuses (`INBOX`, `SAVED`, `APPLIED`, `REJECTED`) and timestamps.
@@ -73,6 +73,7 @@ A personal tech job offer aggregator, deduplicator, and management dashboard wit
 ## Running the Scraper
 
 Add active scraper targets in **Settings → Scraper Targets**. Supported domains:
+- `justjoin.it`
 - `pracuj.pl`
 - `nofluffjobs.com`
 - `theprotocol.it`
@@ -81,6 +82,13 @@ Trigger a manual scrape directly from the dashboard button, or execute locally v
 ```bash
 pnpm dlx tsx src/scripts/scraper/run.ts
 ```
+
+To run only selected sources, set `SCRAPER_SOURCES` to a comma-separated list of adapter domains. For example, run only Theprotocol.it locally with:
+```bash
+SCRAPER_SOURCES=theprotocol.it THEPROTOCOL_HEADLESS=false pnpm dlx tsx src/scripts/scraper/run.ts
+```
+
+The GitHub Actions schedule explicitly selects `justjoin.it`, `nofluffjobs.com`, and `pracuj.pl`; schedule the Theprotocol.it command on the local machine separately. Both environments should use the same database connection if they are expected to update the same dashboard data.
 
 ## Running Tests
 
