@@ -28,6 +28,7 @@ export function JobCard({ job, now }: { job: GroupedJob; now: number }) {
   );
 
   const isNew = now - new Date(job.createdAt).getTime() < 14 * 60 * 60 * 1000;
+  const hasMultipleSources = job.sources.length > 1;
 
   const appliedDateStr = appliedAt
     ? new Intl.DateTimeFormat("en-GB", {
@@ -59,15 +60,19 @@ export function JobCard({ job, now }: { job: GroupedJob; now: number }) {
       <div className="flex items-start justify-between gap-4">
         <div className="flex-1 min-w-0">
           <div className="flex flex-wrap items-center gap-2">
-            <a
-              href={job.url}
-              target="_blank"
-              rel="noreferrer"
-              className="text-lg font-semibold hover:text-primary transition-colors hover:underline inline-flex items-center gap-1.5"
-            >
-              {job.title}
-              <ExternalLink className="w-3.5 h-3.5 opacity-60 shrink-0" />
-            </a>
+            {hasMultipleSources ? (
+              <span className="text-lg font-semibold">{job.title}</span>
+            ) : (
+              <a
+                href={job.url}
+                target="_blank"
+                rel="noreferrer"
+                className="text-lg font-semibold hover:text-primary transition-colors hover:underline inline-flex items-center gap-1.5"
+              >
+                {job.title}
+                <ExternalLink className="w-3.5 h-3.5 opacity-60 shrink-0" />
+              </a>
+            )}
             {isNew && (
               <span className="bg-green-500/10 text-green-600 dark:text-green-400 text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider animate-pulse">
                 New

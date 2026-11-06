@@ -49,7 +49,7 @@ describe("Theprotocol.it adapter", () => {
     assert.equal(jobs[0].company, "Acme Corp Sp. z o.o.");
     assert.equal(
       jobs[0].url,
-      "https://theprotocol.it/szczegoly/oferta/front-end-engineer-react-warszawa,oferta,01000000-5c5c-423f-f3bd-08df3372ea43"
+      "https://theprotocol.it/praca/front-end-engineer-react-warszawa,oferta,01000000-5c5c-423f-f3bd-08df3372ea43"
     );
     assert.equal(jobs[0].source, "Theprotocol.it");
     assert.ok(jobs[0].rawContent.includes("React.js"));
@@ -259,7 +259,7 @@ describe("Theprotocol.it adapter", () => {
       domLinks: [
         {
           title: "Frontend Dev",
-          href: "https://theprotocol.it/szczegoly/oferta/frontend-dev,oferta,123",
+          href: "https://theprotocol.it/praca/frontend-dev,oferta,123",
           textContent: "Frontend Dev React TypeScript",
         },
       ],

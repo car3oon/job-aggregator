@@ -101,7 +101,7 @@ loadSource("src/scripts/scraper/run.ts", {
   "./adapters/theprotocol": { theProtocolAdapter: {
     domain: "theprotocol.it", sourceName: "Theprotocol.it", scrape: async () => {
       record({ adapter: "Theprotocol.it" });
-      return [{ ...job, source: "Theprotocol.it", url: "https://theprotocol.it/szczegoly/oferta/react-developer,oferta,01000000" }];
+      return [{ ...job, source: "Theprotocol.it", url: "https://theprotocol.it/praca/react-developer,oferta,01000000" }];
     },
   } },
   "./adapters/justjoinit": { justJoinItAdapter: ["timeout", "http-error", "context-failure"].includes(mode) ? realAdapter : {

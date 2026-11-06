@@ -124,6 +124,22 @@ export function getJobPortalIdentity(source: string, url: string): string {
   return `${source}:${url}`;
 }
 
+export function normalizeJobUrl(source: string, url: string): string {
+  if (source !== "Theprotocol.it" && !url.includes("theprotocol.it")) return url;
+
+  try {
+    const parsed = new URL(url);
+    if (parsed.hostname === "theprotocol.it" || parsed.hostname === "www.theprotocol.it") {
+      parsed.pathname = parsed.pathname.replace(/^\/szczegoly\/oferta\//, "/praca/");
+      return parsed.href;
+    }
+  } catch {
+    return url;
+  }
+
+  return url;
+}
+
 export function groupJobs<T extends MinimalJob>(jobs: T[]): GroupedJob[] {
   // Keep the newest version of each portal identity, including changed Pracuj.pl or Theprotocol.it slugs.
   const identities = new Map<string, T>();
@@ -161,11 +177,12 @@ export function groupJobs<T extends MinimalJob>(jobs: T[]): GroupedJob[] {
 
     const sourcesMap = new Map<string, JobSourceLink>();
     for (const item of items) {
-      const key = JSON.stringify([item.source, item.url]);
+      const url = normalizeJobUrl(item.source, item.url);
+      const key = JSON.stringify([item.source, url]);
       if (!sourcesMap.has(key)) {
         sourcesMap.set(key, {
           source: item.source,
-          url: item.url,
+          url,
           createdAt: new Date(item.createdAt),
         });
       }
@@ -193,7 +210,7 @@ export function groupJobs<T extends MinimalJob>(jobs: T[]): GroupedJob[] {
       id: primary.id,
       title: primary.title,
       company: primary.company || null,
-      url: primary.url,
+      url: normalizeJobUrl(primary.source, primary.url),
       createdAt: new Date(primary.createdAt),
       updatedAt: new Date(primary.updatedAt),
       categories: Array.from(categoryMap.values()),

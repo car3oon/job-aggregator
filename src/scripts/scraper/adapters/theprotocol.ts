@@ -55,7 +55,7 @@ export function parseTheProtocolOffersResponse(data: unknown): ScrapedJob[] {
       continue;
     }
 
-    const offerUrl = `https://${domain}/szczegoly/oferta/${offerSlug}`;
+    const offerUrl = `https://${domain}/praca/${offerSlug}`;
     const company = text(offer.employer) || undefined;
 
     const locations: string[] = [];

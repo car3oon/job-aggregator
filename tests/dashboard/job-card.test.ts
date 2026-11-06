@@ -73,3 +73,30 @@ test("job cards render Applied badge with application date when marked as APPLIE
   const $ = load(html);
   assert.match($.root().text(), /Applied • 21 Oct/);
 });
+
+test("multi-source job cards use provider badges instead of a single title link", () => {
+  const now = Date.parse("2026-10-23T00:59:59Z");
+  const { JobCard } = loadSource<{ JobCard: (props: { job: GroupedJob; now: number }) => ReturnType<typeof createElement> }>("src/components/JobCard.tsx", {
+    react: {
+      useState: (initial: unknown) => [typeof initial === "boolean" ? true : initial, () => {}],
+      useTransition: () => [false, (fn: () => void) => fn()],
+    },
+    "@/app/actions/job": { updateJobApplicationStatus: async () => ({ success: true }) },
+    "react/jsx-runtime": require("react/jsx-runtime"), "lucide-react": require("lucide-react"),
+  });
+  const createdAt = new Date("2026-10-20T10:00:00Z");
+  const job: GroupedJob = {
+    id: "primary", title: "Fullstack Engineer", company: "Acme", url: "https://example.test/primary",
+    createdAt, updatedAt: createdAt, categories: [], workPreferences: [],
+    sources: [
+      { source: "JustJoinIT", url: "https://justjoin.it/job-offer/primary", createdAt },
+      { source: "Pracuj.pl", url: "https://www.pracuj.pl/praca/primary,oferta,123", createdAt },
+    ],
+    relatedVariants: [], applicationStatus: "INBOX", appliedAt: null,
+  };
+
+  const $ = load(renderToStaticMarkup(createElement(JobCard, { job, now })));
+  assert.equal($("a[href='https://example.test/primary']").length, 0);
+  assert.equal($("a[href='https://justjoin.it/job-offer/primary']").length, 1);
+  assert.equal($("a[href='https://www.pracuj.pl/praca/primary,oferta,123']").length, 1);
+});

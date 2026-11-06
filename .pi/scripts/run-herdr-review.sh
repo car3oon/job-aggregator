@@ -15,23 +15,20 @@ fi
 
 AGENT_NAME="${REVIEWER_KIND}-reviewer"
 
-# Trap to guarantee pane closure on exit
-cleanup() {
-  herdr pane close "$PANE_ID" 2>/dev/null || true
-}
-trap cleanup EXIT
-
 # 2. Wait for pane readiness and start agent
 sleep 0.5
-herdr agent start "$AGENT_NAME" --kind "$REVIEWER_KIND" --pane "$PANE_ID"
+if ! herdr agent start "$AGENT_NAME" --kind "$REVIEWER_KIND" --pane "$PANE_ID"; then
+  herdr pane read "$PANE_ID" > "/tmp/herdr-review-${REVIEWER_KIND}.log"
+  echo "Agent failed to start. Pane $PANE_ID remains open for inspection." >&2
+  exit 1
+fi
 
-# Handle first-time prompts/trust dialogs if any appear
 sleep 0.5
-STATE=$(herdr agent get "$AGENT_NAME" 2>&1 || true)
+STATE=$(herdr agent get "$AGENT_NAME")
 if echo "$STATE" | grep -q '"agent_status":"blocked"'; then
-  # Auto-confirm trust/folder approval in terminal
-  herdr pane send-keys "$PANE_ID" "Down" && sleep 0.1 && herdr pane send-keys "$PANE_ID" "Enter"
-  sleep 0.5
+  herdr pane read "$PANE_ID" > "/tmp/herdr-review-${REVIEWER_KIND}.log"
+  echo "Agent is blocked. Pane $PANE_ID remains open; inspect and respond manually." >&2
+  exit 1
 fi
 
 # 3. Submit review prompt
@@ -43,11 +40,12 @@ Conclude with a clear verdict (OK or Changes requested) and bulleted findings."
 
 herdr agent prompt "$AGENT_NAME" "$PROMPT"
 
-# 4. Wait for completion in background
+# 4. Wait for completion
 herdr agent wait "$AGENT_NAME" --timeout 180000
 
 # 5. Capture final output
 OUTPUT_FILE="/tmp/herdr-review-${REVIEWER_KIND}.log"
 herdr pane read "$PANE_ID" > "$OUTPUT_FILE" 2>&1 || true
 
-# Pane will be closed automatically by trap cleanup on exit
+herdr pane close "$PANE_ID" 2>/dev/null || true
+echo "Review finished. Pane $PANE_ID closed."

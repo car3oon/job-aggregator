@@ -16,6 +16,19 @@ describe("Job Grouping & Deduplication", () => {
     assert.equal(normalizeTitle("Node.JS Engineer"), "nodejs engineer");
   });
 
+  test("normalizes legacy Theprotocol.it detail URLs for displayed links", () => {
+    const grouped = groupJobs([
+      {
+        ...makeJob("legacy-theprotocol"),
+        source: "Theprotocol.it",
+        url: "https://theprotocol.it/szczegoly/oferta/fullstack,oferta,01000000-legacy",
+      },
+    ]);
+
+    assert.equal(grouped[0].url, "https://theprotocol.it/praca/fullstack,oferta,01000000-legacy");
+    assert.equal(grouped[0].sources[0].url, "https://theprotocol.it/praca/fullstack,oferta,01000000-legacy");
+  });
+
   test("areSimilarTitles correctly identifies role variants without mixing stacks or domains", () => {
     assert.equal(areSimilarTitles("Frontend Web Developer", "Frontend Developer"), true);
     assert.equal(areSimilarTitles("Frontend Developer (Vue.js)", "Mid/Senior Frontend Developer (Vue.js)"), true);
@@ -190,7 +203,7 @@ describe("Job Grouping & Deduplication", () => {
         id: "tp-new",
         title: "Frontend Engineer (React)",
         company: "Upvanta",
-        url: "https://theprotocol.it/szczegoly/oferta/front-end-engineer-react-warszawa,oferta,01000000-5c5c-423f-f3bd-08df3372ea43",
+        url: "https://theprotocol.it/praca/front-end-engineer-react-warszawa,oferta,01000000-5c5c-423f-f3bd-08df3372ea43",
         source: "Theprotocol.it",
         createdAt: new Date("2026-10-26T15:00:00Z"),
         updatedAt: new Date("2026-10-26T15:00:00Z"),
@@ -199,7 +212,7 @@ describe("Job Grouping & Deduplication", () => {
         id: "tp-old",
         title: "Frontend Engineer",
         company: "Upvanta",
-        url: "https://theprotocol.it/szczegoly/oferta/front-end-engineer-zdalnie,oferta,01000000-5c5c-423f-f3bd-08df3372ea43",
+        url: "https://theprotocol.it/praca/front-end-engineer-zdalnie,oferta,01000000-5c5c-423f-f3bd-08df3372ea43",
         source: "Theprotocol.it",
         createdAt: new Date("2026-10-25T10:00:00Z"),
         updatedAt: new Date("2026-10-25T10:00:00Z"),
@@ -210,7 +223,7 @@ describe("Job Grouping & Deduplication", () => {
     assert.equal(grouped.length, 1);
     assert.equal(grouped[0].id, "tp-new");
     assert.equal(grouped[0].title, "Frontend Engineer (React)");
-    assert.equal(grouped[0].url, "https://theprotocol.it/szczegoly/oferta/front-end-engineer-react-warszawa,oferta,01000000-5c5c-423f-f3bd-08df3372ea43");
+    assert.equal(grouped[0].url, "https://theprotocol.it/praca/front-end-engineer-react-warszawa,oferta,01000000-5c5c-423f-f3bd-08df3372ea43");
   });
 
   test("groupJobs merges cross-portal offers between Theprotocol.it, Pracuj.pl and NoFluffJobs", () => {
@@ -219,7 +232,7 @@ describe("Job Grouping & Deduplication", () => {
         id: "tp-1",
         title: "Front-End Engineer (React / TypeScript)",
         company: "UPVANTA SPÓŁKA Z OGRANICZONĄ ODPOWIEDZIALNOŚCIĄ",
-        url: "https://theprotocol.it/szczegoly/oferta/front-end-engineer,oferta,01000000-5c5c-423f-f3bd-08df3372ea43",
+        url: "https://theprotocol.it/praca/front-end-engineer,oferta,01000000-5c5c-423f-f3bd-08df3372ea43",
         source: "Theprotocol.it",
         createdAt: new Date("2026-10-26T14:00:00Z"),
         updatedAt: new Date("2026-10-26T14:00:00Z"),
