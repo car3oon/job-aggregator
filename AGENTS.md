@@ -15,13 +15,15 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 - **UI/Styling:** Use Tailwind CSS and `lucide-react` for icons. Favor minimalist design.
 - **Scraper Engine:** The text matching logic requires comma `,` for OR and plus `+` for AND combinations (e.g. `react + fullstack`).
 
-## Multi-Agent Code Review Workflow (Copilot / Codex in Herdr & Hunk)
+## Multi-Agent Code Review Workflow (Herdr & Hunk)
 
-- **Review Delegation:** When requested to perform a code review using Copilot or Codex:
-  1. Determine the reviewer (`copilot` or `codex`).
-  2. Launch the non-blocking background runner: `.pi/scripts/run-herdr-review.sh <copilot|codex> &`.
-  3. The reviewer immediately appears in Herdr's **Agents** sidebar (`copilot-reviewer` or `codex-reviewer`) with its own terminal pane.
-  4. The main chat remains completely free and interactive.
-  5. Findings are posted to Hunk (`hunk session comment add`).
-  6. Upon completion, the runner automatically closes the reviewer pane and frees the agent slot.
-  7. After applying fixes, automatically resolve ONLY the specific comments that were addressed (via `hunk session comment add --repo . --reply-to <id>` or dismissal `hunk session comment rm --repo . <id>`). Never resolve unaddressed or skipped comments.
+The workflow lives in global skills, not in this repository. Do not add project-local copies of the launchers, commands, or reviewer agents; they would drift from the installed versions.
+
+- **Canonical skills:** `hunk-herdr-review` (review) and `hunk-herdr-fix` (fix findings) in `~/.agents/skills/`.
+- **Review Delegation:** When requested to perform a code review using OpenCode, Copilot, or Codex:
+  1. Determine the reviewer (`opencode`, `copilot`, or `codex`). Ask if the user did not choose one.
+  2. Start the non-blocking global launcher: `bash ~/.agents/skills/hunk-herdr-review/scripts/start-herdr-review.sh <opencode|copilot|codex>`. The `/code-review-pane` command does the same from any project.
+  3. The reviewer appears in Herdr's **Agents** sidebar with its own terminal pane; the main chat stays free and interactive.
+  4. Findings are posted to Hunk (`hunk session comment add`).
+  5. The runner writes a completion state to `/tmp/herdr-review-<reviewer>.status` and terminal output to `/tmp/herdr-review-<reviewer>.log`. Poll the status file for `completed`, `failed`, `blocked`, or `timeout`. Override the wait with `HERDR_REVIEW_TIMEOUT_MS` when a review needs longer. The pane stays open after completion or failure for inspection.
+- **Fixing findings:** Start `bash ~/.agents/skills/hunk-herdr-fix/scripts/start-herdr-fix.sh <provider>` (or `/fix-review-findings-pane`) and follow the `hunk-herdr-fix` skill. After applying fixes, resolve ONLY the specific comments that were addressed (via `hunk session comment add --repo . --reply-to <id>` or dismissal `hunk session comment rm --repo . <id>`). Never resolve unaddressed or skipped comments.
