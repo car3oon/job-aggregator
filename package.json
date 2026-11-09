@@ -12,6 +12,7 @@
     "test:auth": "node --test --test-reporter=spec \"tests/auth/**/*.test.ts\"",
     "test:scraper": "node --test --test-reporter=spec \"tests/scraper/**/*.test.ts\"",
     "test:polling": "node --test --test-reporter=spec \"tests/polling/**/*.test.ts\"",
+    "scrape:theprotocol": "SCRAPER_SOURCES=theprotocol.it THEPROTOCOL_HEADLESS=false pnpm dlx tsx src/scripts/scraper/run.ts",
     "typecheck": "tsc --noEmit",
     "check": "pnpm run typecheck && pnpm run lint"
   },
