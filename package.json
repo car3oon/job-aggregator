@@ -12,7 +12,7 @@
     "test:auth": "node --test --test-reporter=spec \"tests/auth/**/*.test.ts\"",
     "test:scraper": "node --test --test-reporter=spec \"tests/scraper/**/*.test.ts\"",
     "test:polling": "node --test --test-reporter=spec \"tests/polling/**/*.test.ts\"",
-    "scrape:theprotocol": "SCRAPER_SOURCES=theprotocol.it THEPROTOCOL_HEADLESS=false pnpm dlx tsx src/scripts/scraper/run.ts",
+    "scrape:theprotocol": "SCRAPER_SOURCES=theprotocol.it THEPROTOCOL_HEADLESS=false tsx src/scripts/scraper/run.ts",
     "typecheck": "tsc --noEmit",
     "check": "pnpm run typecheck && pnpm run lint"
   },
@@ -47,11 +47,13 @@
     "playwright": "^1.64.1",
     "prisma": "7.10.1",
     "tailwindcss": "^4.3.3",
+    "tsx": "^4.23.15",
     "typescript": "^5.9.3"
   },
   "pnpm": {
     "onlyBuiltDependencies": [
       "@prisma/engines",
+      "esbuild",
       "prisma",
       "unrs-resolver"
     ],
