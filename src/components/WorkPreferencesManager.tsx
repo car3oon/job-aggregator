@@ -13,6 +13,7 @@ import { Button } from "@/components/ui/button";
 import { Trash2, Loader2, Play, Pause, MapPin, Pencil, Check } from "lucide-react";
 import { toast } from "@/components/ui/toast";
 import { useEscapeKey } from "@/hooks/useEscapeKey";
+import { cn } from "@/lib/utils";
 
 export function WorkPreferencesManager({
   initialPreferences,
@@ -121,9 +122,10 @@ export function WorkPreferencesManager({
         {initialPreferences.map((item) => (
           <div
             key={item.id}
-            className={`flex flex-col p-4 rounded-lg border transition-colors ${
+            className={cn(
+              "flex flex-col p-4 rounded-lg border transition-colors",
               item.isActive ? "bg-card" : "bg-muted/50 opacity-70"
-            }`}
+            )}
           >
             {editingId === item.id ? (
               <form

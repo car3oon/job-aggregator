@@ -11,7 +11,7 @@ export default function SettingsLoading() {
         {/* Sidebar skeleton */}
         <div className="w-full md:w-64 shrink-0">
           <div className="p-1 bg-muted/60 rounded-xl grid grid-cols-3 md:grid-cols-1 gap-1">
-            {[1, 2, 3].map((i) => (
+            {[1, 2, 3, 4, 5].map((i) => (
               <div
                 key={i}
                 className="h-10 bg-muted/80 rounded-lg animate-pulse motion-reduce:animate-none"

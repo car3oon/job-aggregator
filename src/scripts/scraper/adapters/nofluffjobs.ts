@@ -49,13 +49,31 @@ export function parseNoFluffJobsResponse(value: unknown, jobs = new Map<string, 
     const tiles = record(posting.tiles);
     const skills = Array.isArray(tiles.values) ? tiles.values.map(tile => text(record(tile).value)) : [];
     const salary = record(posting.salary);
+
+    const locationType = text(location.type).toLowerCase();
+    const hybridDesc = text(location.hybridDesc);
+    const isHybrid = locationType === "hybrid" || Boolean(hybridDesc) || Boolean(posting.hybrid) || location.hybrid === true;
+    const isRemote = posting.fullyRemote === true || location.fullyRemote === true || locationType === "remote";
+    const isOffice = locationType === "office";
+
+    const workModes: string[] = [];
+    if (isRemote) workModes.push("Remote Zdalnie");
+    if (isHybrid) {
+      workModes.push("Hybrid Hybrydowo");
+      if (hybridDesc) workModes.push(hybridDesc);
+    }
+    if (isOffice) workModes.push("Office Stacjonarna");
+    if (locationType && !["remote", "hybrid", "office"].includes(locationType)) {
+      workModes.push(locationType);
+    }
+
     const content = normalizeText([
       title, company, text(posting.category), text(posting.technology), ...strings(posting.seniority), ...skills,
       ...places.flatMap(place => {
         const entry = record(place);
         return [text(entry.city), text(entry.province), text(record(entry.country).name)];
       }),
-      posting.fullyRemote === true || location.fullyRemote === true ? "Remote Zdalnie" : "",
+      ...workModes,
       typeof salary.from === "number" ? String(salary.from) : "",
       typeof salary.to === "number" ? String(salary.to) : "",
       text(salary.currency), text(salary.period), text(salary.type),

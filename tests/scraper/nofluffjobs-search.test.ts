@@ -41,6 +41,26 @@ describe("No Fluff Jobs search and pagination", () => {
     assert.equal(parsed[0].rawContent.split("Example Company").length, 2);
   });
 
+  test("API metadata extracts hybrid work mode and description", () => {
+    const jobs = new Map<string, ScrapedJob>();
+    const hybridPosting = {
+      title: "Frontend Engineer (React)",
+      name: "Verita HR",
+      url: "frontend-engineer-react-verita-hr-krakow",
+      reference: "ref-hybrid",
+      location: {
+        places: [{ city: "Kraków" }],
+        type: "hybrid",
+        hybridDesc: "6 days per month from the office in Cracow",
+      },
+      tiles: { values: [{ value: "React" }] },
+    };
+    const parsed = parseNoFluffJobsResponse({ postings: [hybridPosting] }, jobs);
+    assert.equal(parsed.length, 1);
+    assert.match(parsed[0].rawContent, /Hybrid Hybrydowo/);
+    assert.match(parsed[0].rawContent, /6 days per month from the office in Cracow/);
+  });
+
   test("API requests preserve the listing's category and filters and default to newest", async () => {
     let requests = 0;
     const adapter = adapterWithFetch(async (input, options) => {
