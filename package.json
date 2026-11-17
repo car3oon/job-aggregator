@@ -10,6 +10,7 @@
     "lint": "eslint",
     "test": "node --test --test-reporter=spec \"tests/**/*.test.ts\"",
     "test:auth": "node --test --test-reporter=spec \"tests/auth/**/*.test.ts\"",
+    "test:cv": "node --test --test-reporter=spec \"tests/cv/**/*.test.ts\"",
     "test:scraper": "node --test --test-reporter=spec \"tests/scraper/**/*.test.ts\"",
     "test:polling": "node --test --test-reporter=spec \"tests/polling/**/*.test.ts\"",
     "scrape:theprotocol": "SCRAPER_SOURCES=theprotocol.it THEPROTOCOL_HEADLESS=false tsx src/scripts/scraper/run.ts",
