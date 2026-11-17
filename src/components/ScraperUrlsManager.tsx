@@ -14,6 +14,7 @@ import { Trash2, Loader2, Play, Pause, Pencil, Check, ChevronDown } from "lucide
 import { groupScraperUrlsByPortal } from "@/lib/scraper-grouping";
 import { toast } from "@/components/ui/toast";
 import { useEscapeKey } from "@/hooks/useEscapeKey";
+import { cn } from "@/lib/utils";
 
 export function ScraperUrlsManager({
   initialUrls,
@@ -141,9 +142,10 @@ export function ScraperUrlsManager({
                 {group.urls.map((item) => (
                   <div
                     key={item.id}
-                    className={`flex flex-col p-4 transition-colors ${
+                    className={cn(
+                      "flex flex-col p-4 transition-colors",
                       item.isActive ? "bg-card" : "bg-muted/50 opacity-70"
-                    }`}
+                    )}
                   >
                     {editingId === item.id ? (
                       <form

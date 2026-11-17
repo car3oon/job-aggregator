@@ -118,7 +118,7 @@ describe("Authentication and access control", () => {
     const common = {
       "@/lib/auth": context.auth,
       "@/lib/prisma": { prisma: {
-        category: { findMany }, workPreference: { findMany }, scraperUrl: { findMany }, job: { findMany }, scrapeHistory: { findMany },
+        category: { findMany }, workPreference: { findMany }, scraperUrl: { findMany }, cvVersion: { findMany }, job: { findMany }, scrapeHistory: { findMany },
       } },
       react: { Suspense: ({ children }: { children: unknown }) => children },
       "react/jsx-runtime": { jsx, jsxs: jsx }, "next/link": () => {}, "lucide-react": {},
@@ -134,6 +134,9 @@ describe("Authentication and access control", () => {
       "@/lib/job-grouping": { groupJobs: (jobs: unknown[]) => jobs },
       "@/lib/scraper-grouping": { groupScraperUrlsByPortal: () => [] },
       "@/components/Pagination": { Pagination: () => null },
+      "@/lib/cv-hash": { computeComparedCvHash: () => null },
+      "@/app/actions/cvActions": { listCvVersions: async () => [] },
+      "@/components/CvLibraryTab": { CvLibraryTab: () => null },
     };
     const home = (loadSource("src/app/page.tsx", common) as typeof import("../../src/app/page")).default;
     const settings = (loadSource("src/app/settings/page.tsx", common) as typeof import("../../src/app/settings/page")).default;
@@ -160,7 +163,7 @@ describe("Authentication and access control", () => {
     await dashboard.props.children.type(dashboard.props.children.props);
     await settings();
     await history();
-    assert.equal(reads, 8);
+    assert.equal(reads, 9);
     assert.equal(proxy(request(valid, "/settings")), "allowed");
     assert.equal(proxy(request(valid, "/login")), "redirected");
     assert.equal(proxy(request(undefined, "/")), "allowed");

@@ -34,6 +34,7 @@ function loadSource<T = Record<string, unknown>>(
     exports: runtimeModule.exports,
     require: (id: string) => {
       if (Object.hasOwn(mocks, id)) return mocks[id];
+      if (id === "@/lib/utils" || id === "@/lib/utils.ts") return nativeRequire("cn");
       if (id.startsWith("node:")) return nativeRequire(id);
       throw new Error(`Unexpected dependency: ${id}`);
     },

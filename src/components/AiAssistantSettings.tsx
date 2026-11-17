@@ -1,6 +1,7 @@
 "use client";
 
 import { Sparkles, Check, AlertCircle, ExternalLink, Bot, Cpu, Key } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 export interface AiAssistantSettingsProps {
   isConfigured: boolean;
@@ -106,11 +107,12 @@ export function AiAssistantSettings({
             return (
               <div
                 key={model.id}
-                className={`rounded-lg border p-3.5 transition-colors ${
+                className={cn(
+                  "rounded-lg border p-3.5 transition-colors",
                   isCurrent
                     ? "border-primary/60 bg-primary/5 shadow-xs"
                     : "border-border/80 bg-card hover:border-border"
-                }`}
+                )}
               >
                 <div className="flex items-center justify-between gap-2">
                   <div className="flex items-center gap-2">
@@ -127,13 +129,14 @@ export function AiAssistantSettings({
                       </span>
                     )}
                     <span
-                      className={`text-[10px] font-medium px-2 py-0.5 rounded-full border ${
+                      className={cn(
+                        "text-[10px] font-medium px-2 py-0.5 rounded-full border",
                         model.badgeVariant === "emerald"
                           ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20"
                           : model.badgeVariant === "primary"
                           ? "bg-primary/10 text-primary border-primary/20"
                           : "bg-secondary text-secondary-foreground border-border"
-                      }`}
+                      )}
                     >
                       {model.badge}
                     </span>

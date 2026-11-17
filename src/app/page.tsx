@@ -20,12 +20,32 @@ import { DashboardSkeleton, JobListSkeleton } from "@/components/DashboardSkelet
 import { JobCard } from "@/components/JobCard";
 import { Pagination } from "@/components/Pagination";
 import { groupJobs } from "@/lib/job-grouping";
+import { computeComparedCvHash, sha256 } from "@/lib/cv-hash";
 import { type Job, type Category, type WorkPreference, type ScraperUrl, type ApplicationStatus } from "@prisma/client";
+
+type JobAnalysisResult = {
+  id: string;
+  summary: string;
+  requiredSkills: string[];
+  seniority: string | null;
+  location: string | null;
+  workMode: string | null;
+  compensation: string | null;
+  recommendedCvId: string | null;
+  cvMatchReason: string | null;
+  cvMatchStrengths: string[];
+  cvMatchGaps: string[];
+  descriptionHash: string;
+  comparedCvHash: string | null;
+  analyzedAt: Date;
+  recommendedCv: { id: string; label: string } | null;
+};
 
 type JobWithRelations = Job & {
   categories: Category[];
   workPreferences: WorkPreference[];
   scraperUrl: ScraperUrl | null;
+  analysis: JobAnalysisResult | null;
 };
 
 const ITEMS_PER_PAGE = 20;
@@ -113,7 +133,7 @@ async function Dashboard({
   currentStatus: string;
   currentPage: number;
 }) {
-  const [categories, workPreferences, scraperUrls] = await Promise.all([
+  const [categories, workPreferences, scraperUrls, cvVersions] = await Promise.all([
     prisma.category.findMany({
       orderBy: { name: "asc" },
       include: {
@@ -128,7 +148,12 @@ async function Dashboard({
     prisma.scraperUrl.findMany({
       orderBy: { createdAt: "desc" },
     }),
+    prisma.cvVersion.findMany({
+      orderBy: { createdAt: "asc" },
+      select: { id: true, contentHash: true },
+    }),
   ]);
+  const currentComparedCvHash = computeComparedCvHash(cvVersions);
 
   const activeCategory = currentCategorySlug
     ? categories.find((c) => c.slug === currentCategorySlug)
@@ -167,6 +192,27 @@ async function Dashboard({
       categories: true,
       workPreferences: true,
       scraperUrl: true,
+      analysis: {
+        select: {
+          id: true,
+          summary: true,
+          requiredSkills: true,
+          seniority: true,
+          location: true,
+          workMode: true,
+          compensation: true,
+          recommendedCvId: true,
+          cvMatchReason: true,
+          cvMatchStrengths: true,
+          cvMatchGaps: true,
+          descriptionHash: true,
+          comparedCvHash: true,
+          analyzedAt: true,
+          recommendedCv: {
+            select: { id: true, label: true },
+          },
+        },
+      },
     }
   });
 
@@ -367,6 +413,7 @@ async function Dashboard({
             currentPage={currentPage}
             currentCategorySlug={currentCategorySlug}
             currentStatus={currentStatus}
+            currentComparedCvHash={currentComparedCvHash}
           />
         </Suspense>
       </div>
@@ -379,14 +426,32 @@ async function JobList({
   currentPage,
   currentCategorySlug,
   currentStatus,
+  currentComparedCvHash,
 }: {
   jobsPromise: Promise<JobWithRelations[]>;
   currentPage: number;
   currentCategorySlug?: string;
   currentStatus: string;
+  currentComparedCvHash: string | null;
 }) {
   const jobs = await jobsPromise;
-  const groupedJobs = groupJobs(jobs);
+  // Map the nested recommendedCv label into the flat analysis shape expected by groupJobs
+  const jobsWithMappedAnalysis = jobs.map((job) => ({
+    ...job,
+    analysis: job.analysis
+      ? {
+          ...job.analysis,
+          recommendedCvLabel: job.analysis.recommendedCv?.label ?? null,
+        }
+      : null,
+  }));
+  const groupedJobs = groupJobs(jobsWithMappedAnalysis);
+  const descriptionHashes = new Map(
+    jobs.map((job) => [
+      job.id,
+      job.description?.trim() ? sha256(job.description.trim()) : null,
+    ]),
+  );
   // eslint-disable-next-line react-hooks/purity
   const now = Date.now();
 
@@ -457,7 +522,13 @@ async function JobList({
     <div className="space-y-6">
       <div className="grid grid-cols-1 gap-4">
         {paginatedJobs.map((job) => (
-          <JobCard key={job.id} job={job} now={now} />
+          <JobCard
+            key={job.id}
+            job={job}
+            now={now}
+            currentComparedCvHash={currentComparedCvHash}
+            currentDescriptionHash={descriptionHashes.get(job.id) ?? null}
+          />
         ))}
       </div>
 

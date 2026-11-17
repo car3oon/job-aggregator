@@ -10,19 +10,20 @@ model Job {
   id                String            @id @default(uuid())
   title             String
   url               String            @unique
-  source            String            // e.g., "JustJoinIT"
-  company           String?           // The company name
-  categories        Category[]        // Many-to-many relation
-  workPreferences   WorkPreference[]  // Many-to-many relation
+  source            String // e.g., "JustJoinIT"
+  company           String? // The company name
+  categories        Category[] // Many-to-many relation
+  workPreferences   WorkPreference[] // Many-to-many relation
   description       String?           @db.Text // Optional full description/content
   createdAt         DateTime          @default(now())
   updatedAt         DateTime          @updatedAt
-  expiredAt         DateTime?         // Confirmed inactive by the source portal; retained for recovery
+  expiredAt         DateTime? // Confirmed inactive by the source portal; retained for recovery
+  analysis          JobAnalysis?
   applicationStatus ApplicationStatus @default(INBOX)
   appliedAt         DateTime?
 
-  scraperUrlId      String?
-  scraperUrl        ScraperUrl?       @relation(fields: [scraperUrlId], references: [id], onDelete: SetNull)
+  scraperUrlId String?
+  scraperUrl   ScraperUrl? @relation(fields: [scraperUrlId], references: [id], onDelete: SetNull)
 }
 
 enum ApplicationStatus {
@@ -33,13 +34,13 @@ enum ApplicationStatus {
 }
 
 model Category {
-  id        String   @id @default(uuid())
-  name      String   @unique
-  slug      String   @unique
-  keywords  String[] // Words required for a match
-  excluded  String[] // Words that exclude an offer from this category
-  icon      String?
-  jobs      Job[]    // Many-to-many relation
+  id       String   @id @default(uuid())
+  name     String   @unique
+  slug     String   @unique
+  keywords String[] // Words required for a match
+  excluded String[] // Words that exclude an offer from this category
+  icon     String?
+  jobs     Job[] // Many-to-many relation
 }
 
 model WorkPreference {
@@ -48,7 +49,7 @@ model WorkPreference {
   keywords  String[] // Keywords (e.g., ["remote", "hybrid", "home office"])
   isActive  Boolean  @default(true)
   createdAt DateTime @default(now())
-  jobs      Job[]    // Many-to-many relation
+  jobs      Job[] // Many-to-many relation
 }
 
 model ScraperUrl {
@@ -57,17 +58,48 @@ model ScraperUrl {
   name      String?
   isActive  Boolean  @default(true)
   createdAt DateTime @default(now())
-  jobs      Job[]    // One-to-many relation
+  jobs      Job[] // One-to-many relation
 }
 
 model ScrapeHistory {
   id          String    @id @default(uuid())
   startedAt   DateTime  @default(now())
   endedAt     DateTime?
-  status      String    // "RUNNING", "SUCCESS", "FAILED"
-  trigger     String    // "CRON" or "MANUAL"
+  status      String // "RUNNING", "SUCCESS", "FAILED"
+  trigger     String // "CRON" or "MANUAL"
   jobsAdded   Int       @default(0)
   jobsUpdated Int       @default(0)
   logs        String?   @db.Text
   error       String?   @db.Text
+}
+
+model CvVersion {
+  id               String        @id @default(uuid())
+  label            String // e.g., "Frontend", "Full-stack"
+  originalFilename String
+  extractedText    String        @db.Text
+  contentHash      String // SHA-256 of extractedText for change detection
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
+  analyses         JobAnalysis[]
+}
+
+model JobAnalysis {
+  id               String     @id @default(uuid())
+  jobId            String     @unique
+  job              Job        @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  summary          String     @db.Text
+  requiredSkills   String[]
+  seniority        String?
+  location         String?
+  workMode         String?
+  compensation     String?
+  recommendedCvId  String?
+  recommendedCv    CvVersion? @relation(fields: [recommendedCvId], references: [id], onDelete: SetNull)
+  cvMatchReason    String?    @db.Text
+  cvMatchStrengths String[]
+  cvMatchGaps      String[]
+  descriptionHash  String // SHA-256 of the analyzed job description
+  comparedCvHash   String? // Composite hash of active CV versions at analysis time
+  analyzedAt       DateTime   @default(now())
 }

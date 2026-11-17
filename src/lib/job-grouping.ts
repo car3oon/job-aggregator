@@ -16,6 +16,24 @@ export interface RelatedJobVariant {
   appliedAt?: Date | null;
 }
 
+export interface JobAnalysisSummary {
+  id: string;
+  summary: string;
+  requiredSkills: string[];
+  seniority: string | null;
+  location: string | null;
+  workMode: string | null;
+  compensation: string | null;
+  recommendedCvId: string | null;
+  recommendedCvLabel: string | null;
+  cvMatchReason: string | null;
+  cvMatchStrengths: string[];
+  cvMatchGaps: string[];
+  descriptionHash: string;
+  comparedCvHash: string | null;
+  analyzedAt: Date;
+}
+
 export interface MinimalJob {
   id: string;
   title: string;
@@ -24,10 +42,12 @@ export interface MinimalJob {
   source: string;
   createdAt: Date;
   updatedAt: Date;
+  description?: string | null;
   categories?: { id: string; name: string; slug: string }[];
   workPreferences?: { id: string; name: string }[];
   applicationStatus?: "INBOX" | "SAVED" | "APPLIED" | "REJECTED";
   appliedAt?: Date | null;
+  analysis?: JobAnalysisSummary | null;
 }
 
 export interface GroupedJob {
@@ -43,6 +63,10 @@ export interface GroupedJob {
   relatedVariants: RelatedJobVariant[];
   applicationStatus: "INBOX" | "SAVED" | "APPLIED" | "REJECTED";
   appliedAt: Date | null;
+  /** True when the primary job has a non-empty stored description. */
+  hasDescription: boolean;
+  /** Cached AI analysis for the primary job, or null if none exists yet. */
+  analysis: JobAnalysisSummary | null;
 }
 
 export function normalizeCompany(company?: string | null): string {
@@ -219,6 +243,28 @@ export function groupJobs<T extends MinimalJob>(jobs: T[]): GroupedJob[] {
       relatedVariants: [],
       applicationStatus,
       appliedAt,
+      hasDescription: Boolean(
+        primary.description && primary.description.trim().length > 0,
+      ),
+      analysis: primary.analysis
+        ? {
+            id: primary.analysis.id,
+            summary: primary.analysis.summary,
+            requiredSkills: primary.analysis.requiredSkills,
+            seniority: primary.analysis.seniority,
+            location: primary.analysis.location,
+            workMode: primary.analysis.workMode,
+            compensation: primary.analysis.compensation,
+            recommendedCvId: primary.analysis.recommendedCvId,
+            recommendedCvLabel: primary.analysis.recommendedCvLabel ?? null,
+            cvMatchReason: primary.analysis.cvMatchReason,
+            cvMatchStrengths: primary.analysis.cvMatchStrengths,
+            cvMatchGaps: primary.analysis.cvMatchGaps,
+            descriptionHash: primary.analysis.descriptionHash,
+            comparedCvHash: primary.analysis.comparedCvHash,
+            analyzedAt: new Date(primary.analysis.analyzedAt),
+          }
+        : null,
     });
   }
 
