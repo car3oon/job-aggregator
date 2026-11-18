@@ -520,7 +520,7 @@ async function JobList({
         <p className="text-muted-foreground mb-6 max-w-md mx-auto">
           We couldn&apos;t find any job postings matching your current criteria. Wait for the next scraper run or adjust your categories.
         </p>
-        <Link href="/settings">
+        <Link href="/settings/categories">
           <Button variant="outline">Manage Settings</Button>
         </Link>
       </div>
