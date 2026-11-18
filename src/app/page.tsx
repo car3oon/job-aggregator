@@ -20,7 +20,11 @@ import { DashboardSkeleton, JobListSkeleton } from "@/components/DashboardSkelet
 import { JobCard } from "@/components/JobCard";
 import { Pagination } from "@/components/Pagination";
 import { groupJobs } from "@/lib/job-grouping";
-import { computeComparedCvHash, sha256 } from "@/lib/cv-hash";
+import {
+  computeComparedCvHash,
+  computeWorkPreferencesHash,
+  sha256,
+} from "@/lib/cv-hash";
 import { type Job, type Category, type WorkPreference, type ScraperUrl, type ApplicationStatus } from "@prisma/client";
 
 type JobAnalysisResult = {
@@ -31,12 +35,14 @@ type JobAnalysisResult = {
   location: string | null;
   workMode: string | null;
   compensation: string | null;
+  workPreferenceDiff: string | null;
   recommendedCvId: string | null;
   cvMatchReason: string | null;
   cvMatchStrengths: string[];
   cvMatchGaps: string[];
   descriptionHash: string;
   comparedCvHash: string | null;
+  workPreferencesHash: string | null;
   analyzedAt: Date;
   recommendedCv: { id: string; label: string } | null;
 };
@@ -154,6 +160,11 @@ async function Dashboard({
     }),
   ]);
   const currentComparedCvHash = computeComparedCvHash(cvVersions);
+  const currentWorkPreferencesHash = computeWorkPreferencesHash(
+    workPreferences
+      .filter((workPreference) => workPreference.isActive)
+      .map((workPreference) => workPreference.name)
+  );
 
   const activeCategory = currentCategorySlug
     ? categories.find((c) => c.slug === currentCategorySlug)
@@ -201,12 +212,14 @@ async function Dashboard({
           location: true,
           workMode: true,
           compensation: true,
+          workPreferenceDiff: true,
           recommendedCvId: true,
           cvMatchReason: true,
           cvMatchStrengths: true,
           cvMatchGaps: true,
           descriptionHash: true,
           comparedCvHash: true,
+          workPreferencesHash: true,
           analyzedAt: true,
           recommendedCv: {
             select: { id: true, label: true },
@@ -414,6 +427,7 @@ async function Dashboard({
             currentCategorySlug={currentCategorySlug}
             currentStatus={currentStatus}
             currentComparedCvHash={currentComparedCvHash}
+            currentWorkPreferencesHash={currentWorkPreferencesHash}
           />
         </Suspense>
       </div>
@@ -427,12 +441,14 @@ async function JobList({
   currentCategorySlug,
   currentStatus,
   currentComparedCvHash,
+  currentWorkPreferencesHash,
 }: {
   jobsPromise: Promise<JobWithRelations[]>;
   currentPage: number;
   currentCategorySlug?: string;
   currentStatus: string;
   currentComparedCvHash: string | null;
+  currentWorkPreferencesHash: string | null;
 }) {
   const jobs = await jobsPromise;
   // Map the nested recommendedCv label into the flat analysis shape expected by groupJobs
@@ -527,6 +543,7 @@ async function JobList({
             job={job}
             now={now}
             currentComparedCvHash={currentComparedCvHash}
+            currentWorkPreferencesHash={currentWorkPreferencesHash}
             currentDescriptionHash={descriptionHashes.get(job.id) ?? null}
           />
         ))}

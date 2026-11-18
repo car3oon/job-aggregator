@@ -114,7 +114,7 @@ function AiSummaryPanel({
           </div>
           {isStale && (
             <span className="text-[10px] text-amber-600 dark:text-amber-400 font-medium bg-amber-500/10 px-2 py-0.5 rounded-full border border-amber-500/20">
-              Job or CV data changed — re-analyze available
+              Job, CV, or work preference data changed — re-analyze available
             </span>
           )}
         </div>
@@ -172,6 +172,17 @@ function AiSummaryPanel({
           value={analysis.compensation ?? "Not stated in the description"}
         />
       </div>
+
+      {analysis.workPreferenceDiff && (
+        <div className="rounded-lg border border-amber-500/25 bg-amber-500/8 p-3">
+          <p className="text-xs font-semibold text-amber-700 dark:text-amber-400 mb-1">
+            Work preference difference
+          </p>
+          <p className="text-sm text-foreground/90">
+            {analysis.workPreferenceDiff}
+          </p>
+        </div>
+      )}
 
       {/* Required skills */}
       {analysis.requiredSkills.length > 0 && (
@@ -339,6 +350,7 @@ export function JobCard({
   job,
   now,
   currentComparedCvHash,
+  currentWorkPreferencesHash = null,
   currentDescriptionHash,
 }: {
   job: GroupedJob;
@@ -346,6 +358,7 @@ export function JobCard({
   /** Composite hash of active CV versions — passed from the server so the
    *  card can determine staleness without an extra round-trip. */
   currentComparedCvHash: string | null;
+  currentWorkPreferencesHash?: string | null;
   currentDescriptionHash: string | null;
 }) {
   const [showVariants, setShowVariants] = useState(false);
@@ -372,7 +385,8 @@ export function JobCard({
   const isStale =
     currentAnalysis !== null &&
     (currentAnalysis.comparedCvHash !== currentComparedCvHash ||
-      currentAnalysis.descriptionHash !== currentDescriptionHash);
+      currentAnalysis.descriptionHash !== currentDescriptionHash ||
+      currentAnalysis.workPreferencesHash !== currentWorkPreferencesHash);
 
   const appliedDateStr = appliedAt
     ? new Intl.DateTimeFormat("en-GB", {
@@ -418,6 +432,7 @@ export function JobCard({
             location: a.location,
             workMode: a.workMode,
             compensation: a.compensation,
+            workPreferenceDiff: a.workPreferenceDiff,
             recommendedCvId: a.recommendedCvId,
             recommendedCvLabel: a.recommendedCv?.label ?? null,
             cvMatchReason: a.cvMatchReason,
@@ -425,6 +440,7 @@ export function JobCard({
             cvMatchGaps: a.cvMatchGaps,
             descriptionHash: a.descriptionHash,
             comparedCvHash: a.comparedCvHash,
+            workPreferencesHash: a.workPreferencesHash,
             analyzedAt: a.analyzedAt,
           });
           setAnalysisPanelOpen(true);

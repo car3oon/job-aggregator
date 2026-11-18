@@ -14,3 +14,7 @@ export function computeComparedCvHash(
     .join("|");
   return sha256(composite);
 }
+
+export function computeWorkPreferencesHash(preferences: string[]): string {
+  return sha256(JSON.stringify([...preferences].sort()));
+}

@@ -24,6 +24,7 @@ export interface JobAnalysisSummary {
   location: string | null;
   workMode: string | null;
   compensation: string | null;
+  workPreferenceDiff: string | null;
   recommendedCvId: string | null;
   recommendedCvLabel: string | null;
   cvMatchReason: string | null;
@@ -31,6 +32,7 @@ export interface JobAnalysisSummary {
   cvMatchGaps: string[];
   descriptionHash: string;
   comparedCvHash: string | null;
+  workPreferencesHash: string | null;
   analyzedAt: Date;
 }
 
@@ -255,6 +257,7 @@ export function groupJobs<T extends MinimalJob>(jobs: T[]): GroupedJob[] {
             location: primary.analysis.location,
             workMode: primary.analysis.workMode,
             compensation: primary.analysis.compensation,
+            workPreferenceDiff: primary.analysis.workPreferenceDiff,
             recommendedCvId: primary.analysis.recommendedCvId,
             recommendedCvLabel: primary.analysis.recommendedCvLabel ?? null,
             cvMatchReason: primary.analysis.cvMatchReason,
@@ -262,6 +265,7 @@ export function groupJobs<T extends MinimalJob>(jobs: T[]): GroupedJob[] {
             cvMatchGaps: primary.analysis.cvMatchGaps,
             descriptionHash: primary.analysis.descriptionHash,
             comparedCvHash: primary.analysis.comparedCvHash,
+            workPreferencesHash: primary.analysis.workPreferencesHash,
             analyzedAt: new Date(primary.analysis.analyzedAt),
           }
         : null,

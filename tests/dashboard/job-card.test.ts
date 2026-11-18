@@ -138,6 +138,7 @@ test("job cards mark analysis stale when the description changes", () => {
       location: null,
       workMode: null,
       compensation: null,
+      workPreferenceDiff: null,
       recommendedCvId: null,
       recommendedCvLabel: null,
       cvMatchReason: null,
@@ -145,6 +146,7 @@ test("job cards mark analysis stale when the description changes", () => {
       cvMatchGaps: [],
       descriptionHash: "old-description-hash",
       comparedCvHash: null,
+      workPreferencesHash: null,
       analyzedAt: createdAt,
     },
   };
@@ -155,9 +157,76 @@ test("job cards mark analysis stale when the description changes", () => {
     currentComparedCvHash: null,
     currentDescriptionHash: "new-description-hash",
   })));
-  assert.match($.root().text(), /Job or CV data changed — re-analyze available/);
+  assert.match($.root().text(), /Job, CV, or work preference data changed — re-analyze available/);
   // The header button must stay a hide/show toggle even when the result is stale.
   assert.equal($("button[title='Hide AI Analysis']").length, 1);
+});
+
+test("job cards mark analysis stale when active work preferences change", () => {
+  const now = Date.parse("2026-10-23T00:59:59Z");
+  const { JobCard } = loadSource<{
+    JobCard: (props: {
+      job: GroupedJob;
+      now: number;
+      currentComparedCvHash: string | null;
+      currentDescriptionHash: string | null;
+      currentWorkPreferencesHash?: string | null;
+    }) => ReturnType<typeof createElement>;
+  }>("src/components/JobCard.tsx", {
+    ...baseModules,
+    react: {
+      useState: (initial: unknown) => [initial, () => {}],
+      useTransition: () => [false, (fn: () => void) => fn()],
+    },
+  });
+  const createdAt = new Date("2026-10-20T10:00:00Z");
+  const job: GroupedJob = {
+    id: "primary",
+    title: "Fullstack Engineer",
+    company: "Acme",
+    url: "https://example.test/job",
+    createdAt,
+    updatedAt: createdAt,
+    categories: [],
+    workPreferences: [],
+    sources: [],
+    relatedVariants: [],
+    applicationStatus: "INBOX",
+    appliedAt: null,
+    hasDescription: true,
+    analysis: {
+      id: "analysis-1",
+      summary: "A role summary",
+      requiredSkills: [],
+      seniority: null,
+      location: null,
+      workMode: null,
+      compensation: null,
+      workPreferenceDiff: null,
+      recommendedCvId: null,
+      recommendedCvLabel: null,
+      cvMatchReason: null,
+      cvMatchStrengths: [],
+      cvMatchGaps: [],
+      descriptionHash: "description-hash",
+      comparedCvHash: null,
+      workPreferencesHash: "old-preferences-hash",
+      analyzedAt: createdAt,
+    },
+  };
+
+  const $ = load(
+    renderToStaticMarkup(
+      createElement(JobCard, {
+        job,
+        now,
+        currentComparedCvHash: null,
+        currentDescriptionHash: "description-hash",
+        currentWorkPreferencesHash: "new-preferences-hash",
+      })
+    )
+  );
+  assert.match($.root().text(), /Job, CV, or work preference data changed — re-analyze available/);
 });
 
 test("the header AI button never re-runs an existing analysis", () => {
@@ -175,6 +244,7 @@ test("the header AI button never re-runs an existing analysis", () => {
     location: null,
     workMode: null,
     compensation: null,
+    workPreferenceDiff: null,
     recommendedCvId: null,
     recommendedCvLabel: null,
     cvMatchReason: null,
@@ -182,6 +252,7 @@ test("the header AI button never re-runs an existing analysis", () => {
     cvMatchGaps: [],
     descriptionHash: "old-description-hash",
     comparedCvHash: null,
+    workPreferencesHash: null,
     analyzedAt: new Date("2026-10-20T10:00:00Z"),
   };
 
@@ -196,6 +267,7 @@ test("job cards display gap feedback and missing skill badges when no CV matches
       now: number;
       currentComparedCvHash: string | null;
       currentDescriptionHash: string | null;
+      currentWorkPreferencesHash?: string | null;
     }) => ReturnType<typeof createElement>;
   }>("src/components/JobCard.tsx", {
     ...baseModules,
@@ -227,6 +299,8 @@ test("job cards display gap feedback and missing skill badges when no CV matches
       location: "Warszawa",
       workMode: null,
       compensation: null,
+      workPreferenceDiff:
+        "The listing is hybrid in Warsaw, while your preference is hybrid in Wrocław.",
       recommendedCvId: null,
       recommendedCvLabel: null,
       cvMatchReason:
@@ -235,6 +309,7 @@ test("job cards display gap feedback and missing skill badges when no CV matches
       cvMatchGaps: ["German language proficiency"],
       descriptionHash: "desc-hash",
       comparedCvHash: "cv-hash",
+      workPreferencesHash: "pref-hash",
       analyzedAt: createdAt,
     },
   };
@@ -246,6 +321,7 @@ test("job cards display gap feedback and missing skill badges when no CV matches
         now,
         currentComparedCvHash: "cv-hash",
         currentDescriptionHash: "desc-hash",
+        currentWorkPreferencesHash: "pref-hash",
       })
     )
   );
@@ -257,6 +333,11 @@ test("job cards display gap feedback and missing skill badges when no CV matches
   );
   assert.match($.root().text(), /Gaps \/ Missing requirements/);
   assert.match($.root().text(), /German language proficiency/);
+  assert.match($.root().text(), /Work preference difference/);
+  assert.match(
+    $.root().text(),
+    /The listing is hybrid in Warsaw, while your preference is hybrid in Wrocław/
+  );
   // Missing skill badge check
   const missingBadge = $("[title='Missing in your CVs']");
   assert.equal(missingBadge.length, 1);

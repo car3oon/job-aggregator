@@ -3,7 +3,11 @@ import { createRequire } from "node:module";
 import { describe, test } from "node:test";
 import type { ReactNode } from "react";
 import { loadSource } from "../helpers.ts";
-import { computeComparedCvHash, sha256 } from "../../src/lib/cv-hash.ts";
+import {
+  computeComparedCvHash,
+  computeWorkPreferencesHash,
+  sha256,
+} from "../../src/lib/cv-hash.ts";
 
 const require = createRequire(import.meta.url);
 const react = require("react") as typeof import("react");
@@ -187,6 +191,14 @@ describe("CV Library alphabetical sorting and hashing", () => {
     assert.equal(hashA, sha256("a-id:hash-a|b-id:hash-b"));
   });
 
+  test("computeWorkPreferencesHash is stable across preference ordering", () => {
+    assert.equal(
+      computeWorkPreferencesHash(["Remote", "Hybrid, Wrocław"]),
+      computeWorkPreferencesHash(["Hybrid, Wrocław", "Remote"])
+    );
+    assert.equal(computeWorkPreferencesHash([]), sha256("[]"));
+  });
+
   test("analyzeJob returns error when job has no description", async () => {
     const { analyzeJob } = loadSource<typeof import("../../src/app/actions/jobAnalysisActions")>(
       "src/app/actions/jobAnalysisActions.ts",
@@ -196,6 +208,7 @@ describe("CV Library alphabetical sorting and hashing", () => {
         zod: require("zod"),
         "@/lib/auth": { verifyAuth: async () => {} },
         "@/lib/cv-parser": { sha256: (s: string) => s, computeComparedCvHash: () => "hash" },
+        "@/lib/cv-hash": { computeWorkPreferencesHash: () => "pref-hash" },
         ai: { generateObject: async () => ({ object: {} }) },
         "@ai-sdk/google": { createGoogleGenerativeAI: () => () => ({}) },
         "@/lib/prisma": {
@@ -225,6 +238,7 @@ describe("CV Library alphabetical sorting and hashing", () => {
         zod: require("zod"),
         "@/lib/auth": { verifyAuth: async () => {} },
         "@/lib/cv-parser": { sha256: (s: string) => `hash(${s})`, computeComparedCvHash: () => "comp-hash" },
+        "@/lib/cv-hash": { computeWorkPreferencesHash: () => "pref-hash" },
         ai: {
           generateObject: async (options: { model: { modelName: string } }) => {
             capturedModel = options.model.modelName;
@@ -236,6 +250,7 @@ describe("CV Library alphabetical sorting and hashing", () => {
                 location: "Warsaw",
                 workMode: "Remote",
                 compensation: "20k PLN",
+                workPreferenceDiff: null,
                 recommendedCvId: "valid-cv-id",
                 cvMatchReason: "Matches strong React background",
                 cvMatchStrengths: ["React expertise"],
@@ -265,6 +280,7 @@ describe("CV Library alphabetical sorting and hashing", () => {
                 { id: "valid-cv-id", label: "React CV", extractedText: "React developer", contentHash: "cvhash" },
               ],
             },
+            workPreference: { findMany: async () => [] },
             jobAnalysis: {
               upsert: async (args: { create: Record<string, unknown> }) => {
                 upsertedData = args.create;
@@ -289,5 +305,108 @@ describe("CV Library alphabetical sorting and hashing", () => {
     assert.equal(capturedModel, "gemini-3.5-flash");
     assert.equal((upsertedData as Record<string, unknown>).recommendedCvId, "valid-cv-id");
     assert.equal((upsertedData as Record<string, unknown>).seniority, "Senior");
+  });
+
+  test("analyzeJob includes active work preferences and keeps them out of CV gaps", async () => {
+    let capturedPrompt = "";
+    let capturedSystem = "";
+    let upsertedData: Record<string, unknown> | undefined;
+
+    const { analyzeJob } = loadSource<typeof import("../../src/app/actions/jobAnalysisActions")>(
+      "src/app/actions/jobAnalysisActions.ts",
+      {
+        next: { cache: { revalidatePath: () => {} } },
+        "next/cache": { revalidatePath: () => {} },
+        zod: require("zod"),
+        "@/lib/auth": { verifyAuth: async () => {} },
+        "@/lib/cv-parser": { sha256: (s: string) => `hash(${s})`, computeComparedCvHash: () => null },
+        "@/lib/cv-hash": {
+          computeWorkPreferencesHash: () => "pref-hash",
+        },
+        ai: {
+          generateObject: async (options: { prompt: string; system: string }) => {
+            capturedPrompt = options.prompt;
+            capturedSystem = options.system;
+            return {
+              object: {
+                summary: "Hybrid role based in Warsaw",
+                requiredSkills: [],
+                seniority: null,
+                location: "Warsaw",
+                workMode: "Hybrid",
+                compensation: null,
+                workPreferenceDiff:
+                  "The listing is hybrid in Warsaw, while your preference is hybrid in Wrocław.",
+                recommendedCvId: null,
+                cvMatchReason: null,
+                cvMatchStrengths: [],
+                cvMatchGaps: [],
+              },
+            };
+          },
+        },
+        "@ai-sdk/google": { createGoogleGenerativeAI: () => () => ({}) },
+        "@/lib/prisma": {
+          prisma: {
+            job: {
+              findUnique: async () => ({
+                id: "job-1",
+                title: "Senior Frontend Specialist",
+                company: "Example Corp",
+                description: "Hybrid role based in Warsaw.",
+                workPreferences: [],
+              }),
+            },
+            workPreference: {
+              findMany: async (args: unknown) => {
+                assert.equal(
+                  JSON.stringify(args),
+                  JSON.stringify({
+                    where: { isActive: true },
+                    orderBy: { name: "asc" },
+                    select: { name: true },
+                  })
+                );
+                return [{ name: "Hybrid, Wrocław" }];
+              },
+            },
+            cvVersion: { findMany: async () => [] },
+            jobAnalysis: {
+              upsert: async (args: { create: Record<string, unknown> }) => {
+                upsertedData = args.create;
+                return {
+                  id: "analysis-1",
+                  ...args.create,
+                  recommendedCv: null,
+                };
+              },
+            },
+          },
+        },
+      },
+      {
+        process: {
+          env: { GOOGLE_GENERATIVE_AI_API_KEY: "test-key" },
+        },
+      }
+    );
+
+    const res = await analyzeJob("job-1");
+
+    assert.equal(res.ok, true);
+    assert.match(
+      capturedPrompt,
+      /<candidate_work_preferences>\s*Hybrid, Wrocław\s*<\/candidate_work_preferences>/
+    );
+    assert.match(capturedSystem, /Never include work-preference differences in summary or cvMatchGaps/);
+    assert.match(
+      capturedSystem,
+      /cvMatchGaps must contain only professional qualifications, skills, or experience explicitly required by the job/
+    );
+    assert.equal(
+      upsertedData?.workPreferenceDiff,
+      "The listing is hybrid in Warsaw, while your preference is hybrid in Wrocław."
+    );
+    assert.equal(upsertedData?.workPreferencesHash, "pref-hash");
   });
 });

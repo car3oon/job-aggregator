@@ -85,21 +85,23 @@ model CvVersion {
 }
 
 model JobAnalysis {
-  id               String     @id @default(uuid())
-  jobId            String     @unique
-  job              Job        @relation(fields: [jobId], references: [id], onDelete: Cascade)
-  summary          String     @db.Text
-  requiredSkills   String[]
-  seniority        String?
-  location         String?
-  workMode         String?
-  compensation     String?
-  recommendedCvId  String?
-  recommendedCv    CvVersion? @relation(fields: [recommendedCvId], references: [id], onDelete: SetNull)
-  cvMatchReason    String?    @db.Text
-  cvMatchStrengths String[]
-  cvMatchGaps      String[]
-  descriptionHash  String // SHA-256 of the analyzed job description
-  comparedCvHash   String? // Composite hash of active CV versions at analysis time
-  analyzedAt       DateTime   @default(now())
+  id                  String     @id @default(uuid())
+  jobId               String     @unique
+  job                 Job        @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  summary             String     @db.Text
+  requiredSkills      String[]
+  seniority           String?
+  location            String?
+  workMode            String?
+  compensation        String?
+  workPreferenceDiff  String?    @db.Text
+  recommendedCvId     String?
+  recommendedCv       CvVersion? @relation(fields: [recommendedCvId], references: [id], onDelete: SetNull)
+  cvMatchReason       String?    @db.Text
+  cvMatchStrengths    String[]
+  cvMatchGaps         String[]
+  descriptionHash     String // SHA-256 of the analyzed job description
+  comparedCvHash      String? // Composite hash of active CV versions at analysis time
+  workPreferencesHash String? // Hash of active work preferences at analysis time
+  analyzedAt          DateTime   @default(now())
 }

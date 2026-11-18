@@ -44,7 +44,10 @@ function fixture() {
       cvVersion: { findMany: async () => [] },
       job: { findMany: (query: unknown) => { reads.push("jobs"); jobQuery = query; return jobs.promise; } },
     } },
-    "@/lib/cv-hash": { computeComparedCvHash: () => null },
+    "@/lib/cv-hash": {
+      computeComparedCvHash: () => null,
+      computeWorkPreferencesHash: () => "preferences-hash",
+    },
     react: { Suspense: suspense },
     "react/jsx-runtime": { jsx, jsxs: jsx }, "next/link": () => {}, "lucide-react": {},
     "@/components/ui/button": {}, "@/components/RunScraperButton": {},

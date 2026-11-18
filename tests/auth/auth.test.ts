@@ -134,7 +134,10 @@ describe("Authentication and access control", () => {
       "@/lib/job-grouping": { groupJobs: (jobs: unknown[]) => jobs },
       "@/lib/scraper-grouping": { groupScraperUrlsByPortal: () => [] },
       "@/components/Pagination": { Pagination: () => null },
-      "@/lib/cv-hash": { computeComparedCvHash: () => null },
+      "@/lib/cv-hash": {
+        computeComparedCvHash: () => null,
+        computeWorkPreferencesHash: () => "preferences-hash",
+      },
       "@/app/actions/cvActions": { listCvVersions: async () => [] },
       "@/components/CvLibraryTab": { CvLibraryTab: () => null },
     };
