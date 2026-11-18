@@ -126,6 +126,7 @@ describe("Authentication and access control", () => {
       "@/components/ui/button": {}, "@/components/RunScraperButton": {}, "@/lib/utils": {},
       "@/components/DashboardSkeleton": {},
       "@/components/SettingsTabs": {},
+      "@/components/SettingsNav": {},
       "@/components/CategoriesManager": {}, "@/components/ScraperUrlsManager": {},
       "@/components/AiAssistantSettings": {},
       "@/components/WorkPreferencesManager": {}, "@/components/ui/tabs": {},
@@ -143,6 +144,12 @@ describe("Authentication and access control", () => {
     };
     const home = (loadSource("src/app/page.tsx", common) as typeof import("../../src/app/page")).default;
     const settings = (loadSource("src/app/settings/page.tsx", common) as typeof import("../../src/app/settings/page")).default;
+    const settingsLayout = (loadSource("src/app/settings/layout.tsx", common) as typeof import("../../src/app/settings/layout")).default;
+    const categoriesSettings = (loadSource("src/app/settings/categories/page.tsx", common) as typeof import("../../src/app/settings/categories/page")).default;
+    const preferencesSettings = (loadSource("src/app/settings/preferences/page.tsx", common) as typeof import("../../src/app/settings/preferences/page")).default;
+    const scraperSettings = (loadSource("src/app/settings/scraper/page.tsx", common) as typeof import("../../src/app/settings/scraper/page")).default;
+    const assistantSettings = (loadSource("src/app/settings/assistant/page.tsx", common) as typeof import("../../src/app/settings/assistant/page")).default;
+    const cvSettings = (loadSource("src/app/settings/cv-library/page.tsx", common) as typeof import("../../src/app/settings/cv-library/page")).default;
     const history = (loadSource("src/app/history/page.tsx", common) as typeof import("../../src/app/history/page")).default;
     const proxy = (loadSource("src/proxy.ts", {
       "@/lib/session": context.session,
@@ -154,8 +161,15 @@ describe("Authentication and access control", () => {
       context.setCookie(invalid);
       await home({ searchParams: Promise.resolve({}) });
       await assert.rejects(settings(), /redirect:\/login/);
+      await assert.rejects(settingsLayout({ children: null }), /redirect:\/login/);
+      await assert.rejects(categoriesSettings(), /redirect:\/login/);
+      await assert.rejects(preferencesSettings(), /redirect:\/login/);
+      await assert.rejects(scraperSettings(), /redirect:\/login/);
+      await assert.rejects(assistantSettings(), /redirect:\/login/);
+      await assert.rejects(cvSettings(), /redirect:\/login/);
       await assert.rejects(history(), /redirect:\/login/);
       assert.equal(proxy(request(invalid, "/settings")), "redirected");
+      assert.equal(proxy(request(invalid, "/settings/categories")), "redirected");
     }
     assert.equal(reads, 0);
     context.setCookie(valid);
@@ -164,10 +178,17 @@ describe("Authentication and access control", () => {
       props: { children: { type: (props: unknown) => Promise<unknown>; props: unknown } };
     };
     await dashboard.props.children.type(dashboard.props.children.props);
-    await settings();
+    await assert.rejects(settings(), /redirect:\/settings\/categories/);
+    await settingsLayout({ children: null });
+    await categoriesSettings();
+    await preferencesSettings();
+    await scraperSettings();
+    await assistantSettings();
+    await cvSettings();
     await history();
     assert.equal(reads, 9);
     assert.equal(proxy(request(valid, "/settings")), "allowed");
+    assert.equal(proxy(request(valid, "/settings/categories")), "allowed");
     assert.equal(proxy(request(valid, "/login")), "redirected");
     assert.equal(proxy(request(undefined, "/")), "allowed");
   });
