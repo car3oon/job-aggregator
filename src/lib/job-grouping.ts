@@ -166,6 +166,101 @@ export function normalizeJobUrl(source: string, url: string): string {
   return url;
 }
 
+export interface GroupIdentity {
+  title: string;
+  company?: string | null;
+  source: string;
+  url: string;
+  createdAt?: Date | string;
+}
+
+export type JobApplicationStatus =
+  | "INBOX"
+  | "SAVED"
+  | "APPLIED"
+  | "REJECTED";
+
+/**
+ * Key that decides which stored rows the dashboard renders as one card.
+ * Mirrors the level A grouping: normalized company + normalized title.
+ * Rows without a company are never merged with anything else.
+ */
+export function getJobGroupKey(job: GroupIdentity): string {
+  const company = normalizeCompany(job.company);
+  const title = normalizeTitle(job.title);
+  return company ? JSON.stringify([company, title]) : JSON.stringify([job.source, job.url]);
+}
+
+/**
+ * Ids of every stored row that belongs to the same card as `target`.
+ * Used to apply an application status to a whole grouped offer instead of one portal row.
+ */
+export function resolveGroupMemberIds<
+  T extends GroupIdentity & { id: string },
+  U extends GroupIdentity & { id: string },
+>(jobs: T[], target: U): string[] {
+  const key = getJobGroupKey(target);
+  const groupedRows = jobs
+    .filter(job => getJobGroupKey(job) === key)
+    .sort((a, b) => {
+      const getTimestamp = (job: T) =>
+        job.createdAt ? new Date(job.createdAt).getTime() : 0;
+      return getTimestamp(b) - getTimestamp(a);
+    });
+  const uniquePortals = new Map<string, T>();
+  for (const job of groupedRows) {
+    const identity = getJobPortalIdentity(job.source, job.url);
+    if (!uniquePortals.has(identity)) uniquePortals.set(identity, job);
+  }
+  const uniqueRows = [...uniquePortals.values()];
+
+  if (new Set(uniqueRows.map(job => job.source)).size < uniqueRows.length) {
+    return [target.id];
+  }
+
+  const memberIds = uniqueRows.map(job => job.id);
+  return memberIds.includes(target.id) ? memberIds : [target.id, ...memberIds];
+}
+
+export function resolveGroupApplicationState(
+  jobs: Array<{
+    applicationStatus?: JobApplicationStatus;
+    appliedAt?: Date | null;
+    createdAt?: Date | string;
+  }>
+): { applicationStatus: JobApplicationStatus; appliedAt: Date | null } {
+  const getTimestamp = (job: { createdAt?: Date | string }) =>
+    job.createdAt ? new Date(job.createdAt).getTime() : 0;
+
+  const newestFirst = [...jobs].sort(
+    (a, b) => getTimestamp(b) - getTimestamp(a)
+  );
+  const appliedItem = newestFirst.find(
+    job => job.applicationStatus === "APPLIED"
+  );
+  const rejectedItem = newestFirst.find(
+    job => job.applicationStatus === "REJECTED"
+  );
+  const savedItem = newestFirst.find(
+    job => job.applicationStatus === "SAVED"
+  );
+  const primary = newestFirst[0];
+
+  return {
+    applicationStatus:
+      appliedItem?.applicationStatus ??
+      rejectedItem?.applicationStatus ??
+      savedItem?.applicationStatus ??
+      primary?.applicationStatus ??
+      "INBOX",
+    appliedAt: appliedItem?.appliedAt
+      ? new Date(appliedItem.appliedAt)
+      : primary?.appliedAt
+        ? new Date(primary.appliedAt)
+        : null,
+  };
+}
+
 export function groupJobs<T extends MinimalJob>(jobs: T[]): GroupedJob[] {
   // Keep the newest version of each portal identity, including changed Pracuj.pl or Theprotocol.it slugs.
   const identities = new Map<string, T>();
@@ -227,10 +322,8 @@ export function groupJobs<T extends MinimalJob>(jobs: T[]): GroupedJob[] {
       }
     }
 
-    const appliedItem = items.find(item => item.applicationStatus === "APPLIED");
-    const rejectedItem = items.find(item => item.applicationStatus === "REJECTED");
-    const applicationStatus = appliedItem?.applicationStatus || rejectedItem?.applicationStatus || primary.applicationStatus || "INBOX";
-    const appliedAt = appliedItem?.appliedAt ? new Date(appliedItem.appliedAt) : primary.appliedAt ? new Date(primary.appliedAt) : null;
+    const { applicationStatus, appliedAt } =
+      resolveGroupApplicationState(items);
 
     levelAJobs.push({
       id: primary.id,

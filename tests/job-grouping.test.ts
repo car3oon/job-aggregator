@@ -1,6 +1,15 @@
 import assert from "node:assert/strict";
 import { describe, test } from "node:test";
-import { groupJobs, normalizeCompany, normalizeTitle, areSimilarTitles, type MinimalJob } from "../src/lib/job-grouping.ts";
+import {
+  areSimilarTitles,
+  getJobGroupKey,
+  groupJobs,
+  normalizeCompany,
+  normalizeTitle,
+  resolveGroupApplicationState,
+  resolveGroupMemberIds,
+  type MinimalJob,
+} from "../src/lib/job-grouping.ts";
 
 describe("Job Grouping & Deduplication", () => {
   test("normalizeCompany strips legal forms, accents and whitespace", () => {
@@ -27,6 +36,100 @@ describe("Job Grouping & Deduplication", () => {
 
     assert.equal(grouped[0].url, "https://theprotocol.it/praca/fullstack,oferta,01000000-legacy");
     assert.equal(grouped[0].sources[0].url, "https://theprotocol.it/praca/fullstack,oferta,01000000-legacy");
+  });
+
+  test("resolves status members across portals without including related roles", () => {
+    const target = makeJob("justjoin", {
+      title: "Senior Frontend Engineer",
+      company: "Acme Inc.",
+      source: "JustJoinIT",
+    });
+    const members = [
+      target,
+      makeJob("nofluff", {
+        title: "Senior Frontend Engineer",
+        company: "Acme LLC",
+        source: "NoFluffJobs",
+      }),
+      makeJob("theprotocol", {
+        title: "Senior Frontend Engineer",
+        company: "Acme",
+        source: "Theprotocol.it",
+      }),
+      makeJob("related", {
+        title: "Senior Fullstack Engineer",
+        company: "Acme",
+        source: "Pracuj.pl",
+      }),
+    ];
+
+    assert.deepEqual(
+      new Set(resolveGroupMemberIds(members, target)),
+      new Set(["justjoin", "nofluff", "theprotocol"])
+    );
+    assert.notEqual(getJobGroupKey(target), getJobGroupKey(members[3]));
+  });
+
+  test("does not merge same-portal duplicate rows when resolving a group", () => {
+    const target = makeJob("target", {
+      title: "Senior Frontend Engineer",
+      company: "Acme",
+      source: "JustJoinIT",
+    });
+    const duplicate = makeJob("duplicate", {
+      title: "Senior Frontend Engineer",
+      company: "Acme",
+      source: "JustJoinIT",
+      url: "https://justjoin.it/job-offer/another-opening",
+    });
+    const otherPortal = makeJob("other", {
+      title: "Senior Frontend Engineer",
+      company: "Acme",
+      source: "NoFluffJobs",
+    });
+
+    assert.deepEqual(
+      resolveGroupMemberIds([target, duplicate, otherPortal], target),
+      ["target"]
+    );
+  });
+
+  test("resolves legacy group status using the status shown by its card and preserves SAVED", () => {
+    const appliedAt = new Date("2026-11-18T10:00:00Z");
+    const state = resolveGroupApplicationState([
+      {
+        createdAt: "2026-11-18T11:00:00Z",
+        applicationStatus: "INBOX",
+        appliedAt: null,
+      },
+      {
+        createdAt: new Date("2026-11-18T10:00:00Z"),
+        applicationStatus: "APPLIED",
+        appliedAt,
+      },
+      {
+        createdAt: "2026-11-18T09:00:00Z",
+        applicationStatus: "REJECTED",
+        appliedAt: null,
+      },
+    ]);
+
+    assert.equal(state.applicationStatus, "APPLIED");
+    assert.equal(state.appliedAt?.toISOString(), appliedAt.toISOString());
+
+    const savedState = resolveGroupApplicationState([
+      {
+        createdAt: "2026-11-18T12:00:00Z",
+        applicationStatus: "INBOX",
+        appliedAt: null,
+      },
+      {
+        createdAt: "2026-11-18T11:00:00Z",
+        applicationStatus: "SAVED",
+        appliedAt: null,
+      },
+    ]);
+    assert.equal(savedState.applicationStatus, "SAVED");
   });
 
   test("areSimilarTitles correctly identifies role variants without mixing stacks or domains", () => {

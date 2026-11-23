@@ -23,7 +23,7 @@ import {
 } from "lucide-react";
 import type { GroupedJob, JobAnalysisSummary } from "@/lib/job-grouping";
 import {
-  updateJobApplicationStatus,
+  updateGroupedJobStatus,
   type ApplicationStatus,
 } from "@/app/actions/job";
 import { analyzeJob } from "@/app/actions/jobAnalysisActions";
@@ -405,7 +405,7 @@ export function JobCard({
     setAppliedAt(newAppliedAt);
 
     startTransition(async () => {
-      const res = await updateJobApplicationStatus(job.id, newStatus);
+      const res = await updateGroupedJobStatus(job.id, newStatus);
       if (res?.error) {
         setStatus(prevStatus);
         setAppliedAt(prevAppliedAt);

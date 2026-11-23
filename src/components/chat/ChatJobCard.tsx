@@ -11,7 +11,7 @@ import {
   RotateCcw,
   Loader2,
 } from "lucide-react";
-import { updateJobApplicationStatus, type ApplicationStatus } from "@/app/actions/job";
+import { updateGroupedJobStatus, type ApplicationStatus } from "@/app/actions/job";
 import { toast } from "@/components/ui/toast";
 import type { AssistantJobItem } from "@/lib/ai-assistant";
 
@@ -33,7 +33,7 @@ export function ChatJobCard({ job }: ChatJobCardProps) {
     setAppliedAt(newStatus === "APPLIED" ? nowIso : null);
 
     startTransition(async () => {
-      const res = await updateJobApplicationStatus(job.id, newStatus);
+      const res = await updateGroupedJobStatus(job.id, newStatus);
       if (res?.error) {
         setStatus(prevStatus);
         setAppliedAt(prevAppliedAt);

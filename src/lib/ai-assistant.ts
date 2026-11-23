@@ -1,4 +1,6 @@
 import { prisma } from "@/lib/prisma";
+import { resolveGroupMemberIds } from "@/lib/job-grouping";
+import { updateGroupedJobStatus } from "@/lib/grouped-job-status";
 import { revalidatePath } from "next/cache";
 
 export interface AssistantJobItem {
@@ -101,6 +103,7 @@ export async function updateJobStatusForAssistant(options: UpdateJobStatusOption
     const q = options.searchQuery.trim();
     const candidates = await prisma.job.findMany({
       where: {
+        expiredAt: null,
         OR: [
           { title: { contains: q, mode: "insensitive" } },
           { company: { contains: q, mode: "insensitive" } },
@@ -108,25 +111,45 @@ export async function updateJobStatusForAssistant(options: UpdateJobStatusOption
       },
       take: 6,
       orderBy: { createdAt: "desc" },
+      select: {
+        id: true,
+        title: true,
+        company: true,
+        source: true,
+        url: true,
+        createdAt: true,
+      },
     });
 
-    if (candidates.length > 1) {
+    const candidateGroups = new Map<string, (typeof candidates)[number]>();
+    for (const candidate of candidates) {
+      const memberIds = resolveGroupMemberIds(candidates, candidate).sort();
+      const groupKey = JSON.stringify(memberIds);
+      if (!candidateGroups.has(groupKey)) {
+        candidateGroups.set(groupKey, candidate);
+      }
+    }
+    const distinctCandidates = [...candidateGroups.values()];
+
+    if (distinctCandidates.length > 1) {
       // Check if there is an exact single title match
-      const exactTitle = candidates.filter((c) => c.title.toLowerCase() === q.toLowerCase());
+      const exactTitle = distinctCandidates.filter(
+        (candidate) => candidate.title.toLowerCase() === q.toLowerCase()
+      );
       if (exactTitle.length === 1) {
         targetId = exactTitle[0].id;
       } else {
-        const matchesList = candidates
+        const matchesList = distinctCandidates
           .slice(0, 5)
           .map((c) => `"${c.title}" at ${c.company || "unknown"}`)
           .join(", ");
         return {
           success: false,
-          message: `Found multiple (${candidates.length}) offers matching "${q}". Please specify the exact title or provide the job ID. Matches: ${matchesList}`,
+          message: `Found multiple (${distinctCandidates.length}) offers matching "${q}". Please specify the exact title or provide the job ID. Matches: ${matchesList}`,
         };
       }
-    } else if (candidates.length === 1) {
-      targetId = candidates[0].id;
+    } else if (distinctCandidates.length === 1) {
+      targetId = distinctCandidates[0].id;
     }
   }
 
@@ -139,16 +162,10 @@ export async function updateJobStatusForAssistant(options: UpdateJobStatusOption
     };
   }
 
-  const updated = await prisma.job.update({
-    where: { id: targetId },
-    data: {
-      applicationStatus: options.status,
-      appliedAt: options.status === "APPLIED" ? new Date() : null,
-    },
-    include: {
-      categories: true,
-    },
-  });
+  const updated = await updateGroupedJobStatus(targetId, options.status);
+  if (!updated.success) {
+    return { success: false, message: updated.message };
+  }
 
   try {
     revalidatePath("/");
@@ -158,13 +175,13 @@ export async function updateJobStatusForAssistant(options: UpdateJobStatusOption
 
   return {
     success: true,
-    message: `Updated "${updated.title}"${updated.company ? ` at ${updated.company}` : ""} to status ${options.status}.`,
+    message: `Updated "${updated.title}"${updated.company ? ` at ${updated.company}` : ""} to status ${options.status} across ${updated.updatedCount} source listing${updated.updatedCount === 1 ? "" : "s"}.`,
     job: {
-      id: updated.id,
+      id: targetId,
       title: updated.title,
       company: updated.company,
-      status: updated.applicationStatus,
-      appliedAt: updated.appliedAt ? updated.appliedAt.toISOString() : null,
+      status: options.status,
+      appliedAt: updated.appliedAt?.toISOString() ?? null,
     },
   };
 }

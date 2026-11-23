@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { createRequire } from "node:module";
 import { describe, test } from "node:test";
 import { loadSource } from "./helpers.ts";
+import * as jobGrouping from "../src/lib/job-grouping.ts";
 
 const require = createRequire(import.meta.url);
 const react = require("react") as typeof import("react");
@@ -10,6 +11,24 @@ const { load } = require("cheerio") as typeof import("cheerio");
 
 type AssistantModule = typeof import("../src/lib/ai-assistant.ts");
 type ChatRouteModule = typeof import("../src/app/api/chat/route.ts");
+
+const assistantHelperMocks = {
+  "@/lib/job-grouping": jobGrouping,
+  "@/lib/grouped-job-status": {
+    updateGroupedJobStatus: async (
+      jobId: string,
+      status: "INBOX" | "SAVED" | "APPLIED" | "REJECTED"
+    ) => ({
+      success: true,
+      updatedCount: 1,
+      title: "React Developer",
+      company: "Acme",
+      applicationStatus: status,
+      appliedAt: status === "APPLIED" ? new Date("2026-10-28T12:00:00Z") : null,
+      jobId,
+    }),
+  },
+};
 
 describe("AI Assistant Backend Library", () => {
   test("getJobsForAssistant builds proper Prisma where clauses and maps outputs", async () => {
@@ -30,6 +49,7 @@ describe("AI Assistant Backend Library", () => {
     ];
 
     const { getJobsForAssistant } = loadSource<AssistantModule>("src/lib/ai-assistant.ts", {
+      ...assistantHelperMocks,
       "@/lib/prisma": {
         prisma: {
           job: {
@@ -64,28 +84,49 @@ describe("AI Assistant Backend Library", () => {
   });
 
   test("updateJobStatusForAssistant updates by ID or searchQuery", async () => {
-    let updateArgs: Record<string, unknown> | null = null;
     let findManyArgs: Record<string, unknown> | null = null;
+    const groupedUpdate: { value?: { jobId: string; status: string } } = {};
 
     const { updateJobStatusForAssistant } = loadSource<AssistantModule>("src/lib/ai-assistant.ts", {
+      ...assistantHelperMocks,
       "@/lib/prisma": {
         prisma: {
           job: {
             findMany: async (args: Record<string, unknown>) => {
               findManyArgs = args;
-              return [{ id: "job-found-1", title: "React Developer", company: "Acme" }];
-            },
-            update: async (args: Record<string, unknown>) => {
-              updateArgs = args;
-              return {
-                id: (args as { where: { id: string } }).where.id,
-                title: "React Developer",
-                company: "Acme",
-                applicationStatus: (args as { data: { applicationStatus: string } }).data.applicationStatus,
-                appliedAt: new Date("2026-10-28T12:00:00Z"),
-              };
+              return [
+                {
+                  id: "job-found-1",
+                  title: "React Developer",
+                  company: "Acme LLC",
+                  source: "JustJoinIT",
+                  url: "https://justjoin.it/job-offer/acme-react",
+                  createdAt: new Date("2026-10-28T12:00:00Z"),
+                },
+                {
+                  id: "job-found-2",
+                  title: "React Developer",
+                  company: "Acme",
+                  source: "NoFluffJobs",
+                  url: "https://nofluffjobs.com/pl/job/acme-react",
+                  createdAt: new Date("2026-10-27T12:00:00Z"),
+                },
+              ];
             },
           },
+        },
+      },
+      "@/lib/grouped-job-status": {
+        updateGroupedJobStatus: async (jobId: string, status: string) => {
+          groupedUpdate.value = { jobId, status };
+          return {
+            success: true,
+            updatedCount: 2,
+            title: "React Developer",
+            company: "Acme LLC",
+            applicationStatus: status,
+            appliedAt: new Date("2026-10-28T12:00:00Z"),
+          };
         },
       },
       "next/cache": { revalidatePath() {} },
@@ -99,26 +140,45 @@ describe("AI Assistant Backend Library", () => {
 
     assert.equal(res.success, true);
     assert.ok(findManyArgs);
-    assert.ok(updateArgs);
-    assert.equal((updateArgs as { where: { id: string } }).where.id, "job-found-1");
-    assert.equal((updateArgs as { data: { applicationStatus: string } }).data.applicationStatus, "APPLIED");
+    assert.equal(groupedUpdate.value?.jobId, "job-found-1");
+    assert.equal(groupedUpdate.value?.status, "APPLIED");
+    assert.equal(res.job?.status, "APPLIED");
+    assert.match(res.message ?? "", /across 2 source listings/);
   });
 
   test("updateJobStatusForAssistant refuses to mutate ambiguous search matches", async () => {
     let updateCalled = false;
 
     const { updateJobStatusForAssistant } = loadSource<AssistantModule>("src/lib/ai-assistant.ts", {
+      ...assistantHelperMocks,
       "@/lib/prisma": {
         prisma: {
           job: {
             findMany: async () => [
-              { id: "1", title: "Frontend Developer", company: "Upvanta" },
-              { id: "2", title: "Senior Fullstack Developer", company: "Upvanta" },
+              {
+                id: "1",
+                title: "Frontend Developer",
+                company: "Upvanta",
+                source: "JustJoinIT",
+                url: "https://justjoin.it/job-offer/1",
+                createdAt: new Date("2026-10-28T12:00:00Z"),
+              },
+              {
+                id: "2",
+                title: "Senior Fullstack Developer",
+                company: "Upvanta",
+                source: "NoFluffJobs",
+                url: "https://nofluffjobs.com/pl/job/2",
+                createdAt: new Date("2026-10-27T12:00:00Z"),
+              },
             ],
-            update: async () => {
-              updateCalled = true;
-            },
           },
+        },
+      },
+      "@/lib/grouped-job-status": {
+        updateGroupedJobStatus: async () => {
+          updateCalled = true;
+          return { success: true, updatedCount: 1 };
         },
       },
       "next/cache": { revalidatePath() {} },
@@ -131,11 +191,12 @@ describe("AI Assistant Backend Library", () => {
 
     assert.equal(res.success, false);
     assert.equal(updateCalled, false);
-    assert.match(res.message, /Found multiple/);
+    assert.match(res.message ?? "", /Found multiple/);
   });
 
   test("getDashboardStatsForAssistant aggregates counts and last scrape", async () => {
     const { getDashboardStatsForAssistant } = loadSource<AssistantModule>("src/lib/ai-assistant.ts", {
+      ...assistantHelperMocks,
       "@/lib/prisma": {
         prisma: {
           job: {
@@ -173,6 +234,7 @@ describe("AI Assistant Backend Library", () => {
 
   test("triggerScraperForAssistant validates token and dispatches workflow", async () => {
     const { triggerScraperForAssistant } = loadSource<AssistantModule>("src/lib/ai-assistant.ts", {
+      ...assistantHelperMocks,
       "@/lib/prisma": { prisma: {} },
       "next/cache": { revalidatePath() {} },
     }, { process: { env: {} } });
@@ -183,6 +245,7 @@ describe("AI Assistant Backend Library", () => {
 
     let fetchCalled = false;
     const { triggerScraperForAssistant: triggerWithToken } = loadSource<AssistantModule>("src/lib/ai-assistant.ts", {
+      ...assistantHelperMocks,
       "@/lib/prisma": { prisma: {} },
       "next/cache": { revalidatePath() {} },
     }, {
@@ -405,7 +468,7 @@ describe("AI Assistant UI Components", () => {
         react,
         "lucide-react": require("lucide-react"),
         "@/app/actions/job": {
-          updateJobApplicationStatus: async () => ({ success: true }),
+          updateGroupedJobStatus: async () => ({ success: true }),
         },
         "@/components/ui/toast": { toast: { add: () => {} } },
         "react/jsx-runtime": require("react/jsx-runtime"),

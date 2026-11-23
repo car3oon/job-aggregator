@@ -1,8 +1,15 @@
 import { loadSource } from "../helpers.ts";
+import * as jobGrouping from "../../src/lib/job-grouping.ts";
 
 const mode = process.argv[2] ?? "";
 const record = (event: Record<string, unknown>) => console.log(JSON.stringify(event));
-const job = { title: "React developer", url: "https://justjoin.it/job-offer/test", source: "JustJoinIT", rawContent: "React" };
+const job = {
+  title: "React developer",
+  company: mode === "inherit-saved" ? "Acme" : null,
+  url: "https://justjoin.it/job-offer/test",
+  source: "JustJoinIT",
+  rawContent: "React",
+};
 let writes = 0;
 const prisma = {
   scrapeHistory: {
@@ -27,12 +34,28 @@ const prisma = {
   } },
   workPreference: { findMany: async () => [] },
   job: {
-    findMany: async ({ where }: { where: { source: string } }) => {
+    findMany: async ({ where }: { where: { source?: string; expiredAt?: null } }) => {
       if (mode === "pracuj-id-prefix-collision" && where.source === "Pracuj.pl") {
         return [
           { id: "lookalike", url: "https://www.pracuj.pl/praca/other,oferta,10012345678" },
           { id: "exact", url: "https://www.pracuj.pl/praca/old-slug,oferta,1001234567" },
         ];
+      }
+      if (where.expiredAt === null) {
+        return mode === "inherit-saved"
+          ? [
+              {
+                id: "saved-existing",
+                title: "React developer",
+                company: "Acme LLC",
+                source: "NoFluffJobs",
+                url: "https://nofluffjobs.com/pl/job/react-developer",
+                createdAt: new Date("2026-11-18T10:00:00Z"),
+                applicationStatus: "SAVED",
+                appliedAt: null,
+              },
+            ]
+          : [];
       }
       record({ availabilityRead: where.source });
       return ["nofluff-availability", "nofluff-status-error"].includes(mode) ? [
@@ -47,10 +70,25 @@ const prisma = {
     findUnique: async () => mode === "nonmatching-existing" ? { id: "job" } : null,
     delete: async ({ where }: { where: { url: string } }) => record({ deleted: true, url: where.url }),
     deleteMany: async () => { record({ cleanup: true }); return { count: 0 }; },
-    upsert: async ({ create }: { create: { source: string; url: string } }) => {
+    upsert: async ({
+      create,
+    }: {
+      create: {
+        source: string;
+        url: string;
+        applicationStatus: string;
+        appliedAt: Date | null;
+      };
+    }) => {
       writes++;
       if (mode === "write-failure" || (mode === "partial" && writes === 2)) throw new Error("Write failed");
-      record({ saved: true, source: create.source, url: create.url });
+      record({
+        saved: true,
+        source: create.source,
+        url: create.url,
+        applicationStatus: create.applicationStatus,
+        appliedAt: create.appliedAt?.toISOString() ?? null,
+      });
     },
   },
   $disconnect: async () => {
@@ -79,6 +117,7 @@ const realAdapter = loadSource<typeof import("../../src/scripts/scraper/adapters
 loadSource("src/scripts/scraper/run.ts", {
   dotenv: { config() {} },
   "../../lib/prisma": { prisma },
+  "../../lib/job-grouping": jobGrouping,
   "./engine": { processJob: (raw: typeof job) => ({ ...raw, matchedCategories: ["nonmatching-existing", "pracuj-id-prefix-collision"].includes(mode) ? [] : ["Frontend"], matchedPreferences: [] }) },
   "./availability": loadSource("src/scripts/scraper/availability.ts"),
   "./adapters/nofluffjobs": { noFluffJobsAdapter: {

@@ -16,11 +16,14 @@ type ScraperEvent = {
   adapter?: string;
   saved?: boolean;
   source?: string;
+  applicationStatus?: string;
+  appliedAt?: string | null;
   history?: { status: Scenario[2]; jobsAdded: number; logs: string };
 };
 
 const cases: Scenario[] = [
   ["success", 0, "SUCCESS", 1],
+  ["inherit-saved", 0, "SUCCESS", 1],
   ["nofluff-success", 0, "SUCCESS", 1],
   ["nofluff-availability", 0, "SUCCESS", 1],
   ["nofluff-status-error", 0, "SUCCESS", 1],
@@ -81,6 +84,11 @@ describe("Scraper runner", () => {
       }
       if (mode === "success") {
         assert.match(history!.logs, /Category filters: 1 matched, 0 rejected/);
+      }
+      if (mode === "inherit-saved") {
+        const saved = events.find(event => event.saved);
+        assert.equal(saved?.applicationStatus, "SAVED");
+        assert.equal(saved?.appliedAt, null);
       }
       if (mode === "nofluff-success") {
         assert.equal(events.some(event => event.adapter === "NoFluffJobs"), true);
