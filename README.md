@@ -90,20 +90,22 @@ Add active scraper targets in **Settings → Scraper Targets**. Supported domain
 
 Trigger a manual scrape directly from the dashboard button, or execute locally via CLI:
 ```bash
+pnpm scrape:local
+```
+
+`scrape:local` runs all four adapters against the targets stored in the database. Pracuj.pl and Theprotocol.it open a real browser window, because Cloudflare challenges headless browsers on those portals; the run therefore needs a desktop session (on Linux CI it runs headed under `xvfb-run`).
+
+To run only selected sources, set `SCRAPER_SOURCES` to a comma-separated list of adapter domains:
+```bash
+SCRAPER_SOURCES=theprotocol.it pnpm scrape:local
+```
+
+For a headless run without a display, use the bare command and accept that Cloudflare-protected portals may fail:
+```bash
 pnpm exec tsx src/scripts/scraper/run.ts
 ```
 
-To run only selected sources, set `SCRAPER_SOURCES` to a comma-separated list of adapter domains. For example, run only Theprotocol.it locally with:
-```bash
-SCRAPER_SOURCES=theprotocol.it THEPROTOCOL_HEADLESS=false pnpm exec tsx src/scripts/scraper/run.ts
-```
-
-Or use the dedicated script:
-```bash
-pnpm scrape:theprotocol
-```
-
-The GitHub Actions schedule explicitly selects `justjoin.it`, `nofluffjobs.com`, and `pracuj.pl`; schedule the Theprotocol.it command on the local machine separately. Both environments should use the same database connection if they are expected to update the same dashboard data.
+The GitHub Actions schedule explicitly selects `justjoin.it`, `nofluffjobs.com`, and `pracuj.pl`; run Theprotocol.it locally with `pnpm scrape:theprotocol`. Both environments should use the same database connection if they are expected to update the same dashboard data.
 
 ## AI Job Analysis & CV Library
 

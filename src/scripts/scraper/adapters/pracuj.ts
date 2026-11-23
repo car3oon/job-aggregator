@@ -133,7 +133,12 @@ export const pracujAdapter: ScraperAdapter = {
         try {
           await page.locator("script#__NEXT_DATA__").waitFor({ state: "attached", timeout: 30_000 });
         } catch (cause) {
-          throw new Error("Pracuj.pl page 1 is blocked by Cloudflare; listing data did not appear within 30 seconds", { cause });
+          // Cloudflare reliably challenges headless Chromium on Pracuj.pl, so a headed run is the supported setup.
+          throw new Error(
+            "Pracuj.pl page 1 is blocked by Cloudflare; listing data did not appear within 30 seconds. " +
+              "Cloudflare challenges headless browsers, so run Pracuj.pl headed (PRACUJ_HEADLESS=false or pnpm scrape:local).",
+            { cause },
+          );
         }
         validateUrl(page.url());
       } else if (!response?.ok()) {
