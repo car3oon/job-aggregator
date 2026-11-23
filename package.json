@@ -13,6 +13,7 @@
     "test:cv": "node --test --test-reporter=spec \"tests/cv/**/*.test.ts\"",
     "test:scraper": "node --test --test-reporter=spec \"tests/scraper/**/*.test.ts\"",
     "test:polling": "node --test --test-reporter=spec \"tests/polling/**/*.test.ts\"",
+    "scrape:local": "PRACUJ_HEADLESS=false THEPROTOCOL_HEADLESS=false tsx src/scripts/scraper/run.ts",
     "scrape:theprotocol": "SCRAPER_SOURCES=theprotocol.it THEPROTOCOL_HEADLESS=false tsx src/scripts/scraper/run.ts",
     "typecheck": "tsc --noEmit",
     "check": "pnpm run typecheck && pnpm run lint"
