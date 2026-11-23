@@ -9,7 +9,7 @@ const { createElement } = require("react") as typeof import("react");
 const { renderToStaticMarkup } = require("react-dom/server") as typeof import("react-dom/server");
 const { load } = require("cheerio") as typeof import("cheerio");
 
-const mockJobActions = { updateJobApplicationStatus: async () => ({ success: true }) };
+const mockJobActions = { updateGroupedJobStatus: async () => ({ success: true }) };
 const mockAnalysisActions = {
   analyzeJob: async () => ({ ok: false, error: "mock" }),
 };

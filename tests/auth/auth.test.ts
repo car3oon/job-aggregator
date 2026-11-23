@@ -90,6 +90,9 @@ describe("Authentication and access control", () => {
     const prisma = new Proxy({}, { get: failBoundary });
     const common = {
       "@/lib/auth": context.auth,
+      "@/lib/grouped-job-status": {
+        updateGroupedJobStatus: async () => ({ success: true, updatedCount: 1 }),
+      },
       "@/lib/prisma": { prisma },
       "next/cache": { revalidatePath: failBoundary },
       "@/scripts/scraper/engine": {},
@@ -117,6 +120,9 @@ describe("Authentication and access control", () => {
     const jsx = (type: unknown, props: unknown) => ({ type, props });
     const common = {
       "@/lib/auth": context.auth,
+      "@/lib/grouped-job-status": {
+        updateGroupedJobStatus: async () => ({ success: true, updatedCount: 1 }),
+      },
       "@/lib/prisma": { prisma: {
         category: { findMany }, workPreference: { findMany }, scraperUrl: { findMany }, cvVersion: { findMany }, job: { findMany }, scrapeHistory: { findMany },
       } },

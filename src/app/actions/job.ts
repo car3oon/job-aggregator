@@ -1,12 +1,13 @@
 "use server";
 
-import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
 import { verifyAuth } from "@/lib/auth";
+import { updateGroupedJobStatus as updateGroupedJobStatusInDatabase } from "@/lib/grouped-job-status";
+import type { JobApplicationStatus } from "@/lib/job-grouping";
 
-export type ApplicationStatus = "INBOX" | "SAVED" | "APPLIED" | "REJECTED";
+export type ApplicationStatus = JobApplicationStatus;
 
-export async function updateJobApplicationStatus(
+async function applyGroupedJobStatus(
   jobId: string,
   status: ApplicationStatus
 ) {
@@ -17,17 +18,28 @@ export async function updateJobApplicationStatus(
   }
 
   try {
-    await prisma.job.update({
-      where: { id: jobId },
-      data: {
-        applicationStatus: status,
-        appliedAt: status === "APPLIED" ? new Date() : null,
-      },
-    });
+    const result = await updateGroupedJobStatusInDatabase(jobId, status);
+    if (!result.success) {
+      return { error: result.message ?? "Failed to update job application status." };
+    }
 
     revalidatePath("/");
-    return { success: true };
+    return { success: true, updatedCount: result.updatedCount };
   } catch {
     return { error: "Failed to update job application status." };
   }
+}
+
+export async function updateGroupedJobStatus(
+  jobId: string,
+  status: ApplicationStatus
+) {
+  return applyGroupedJobStatus(jobId, status);
+}
+
+export async function updateJobApplicationStatus(
+  jobId: string,
+  status: ApplicationStatus
+) {
+  return applyGroupedJobStatus(jobId, status);
 }

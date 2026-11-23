@@ -9,6 +9,10 @@ import { theProtocolAdapter } from "./adapters/theprotocol";
 import { ScraperAdapter } from "./types";
 import { processJob } from "./engine";
 import { refreshJobAvailability } from "./availability";
+import {
+  resolveGroupApplicationState,
+  resolveGroupMemberIds,
+} from "../../lib/job-grouping";
 
 const adapters: ScraperAdapter[] = [
   justJoinItAdapter,
@@ -18,6 +22,8 @@ const adapters: ScraperAdapter[] = [
 ];
 
 function getSelectedAdapters(): ScraperAdapter[] {
+  if (process.env.TRIGGER_SOURCE?.toLowerCase() === "local") return adapters;
+
   const configuredSources = process.env.SCRAPER_SOURCES;
   if (configuredSources === undefined) return adapters;
 
@@ -56,8 +62,13 @@ async function run() {
   const { prisma } = await import("../../lib/prisma");
 
   // Determine trigger source
-  const triggerEnv = process.env.TRIGGER_SOURCE || "MANUAL";
-  const trigger = triggerEnv === "schedule" ? "CRON" : "MANUAL";
+  const triggerEnv = (process.env.TRIGGER_SOURCE || "MANUAL").toLowerCase();
+  const trigger =
+    triggerEnv === "schedule"
+      ? "CRON"
+      : triggerEnv === "local"
+        ? "LOCAL"
+        : "MANUAL";
 
   let historyId: string | undefined;
   let totalAdded = 0;
@@ -103,6 +114,19 @@ async function run() {
     appendLog(`📋 Loaded ${targets.length} targets, ${categories.length} categories, ${preferences.length} work preferences.`);
     appendLog(`🔧 Selected sources: ${selectedAdapters.map(adapter => adapter.sourceName).join(", ")}.`);
 
+    const activeStatusRows = await prisma.job.findMany({
+      where: { expiredAt: null },
+      select: {
+        id: true,
+        title: true,
+        company: true,
+        source: true,
+        url: true,
+        createdAt: true,
+        applicationStatus: true,
+        appliedAt: true,
+      },
+    });
     const successfulAdapters = new Set<ScraperAdapter>();
     for (const target of targets) {
       try {
@@ -134,6 +158,20 @@ async function run() {
 
         for (const job of processedJobs) {
           try {
+            const incomingStatusTarget = {
+              id: "",
+              title: job.title,
+              company: job.company,
+              source: job.source,
+              url: job.url,
+            };
+            const memberIds = resolveGroupMemberIds(
+              activeStatusRows,
+              incomingStatusTarget
+            );
+            const inheritedState = resolveGroupApplicationState(
+              activeStatusRows.filter(row => memberIds.includes(row.id))
+            );
             let existing = await prisma.job.findUnique({ where: { url: job.url } });
 
             // If not found by exact URL, check if a Pracuj.pl offer exists with the same offer ID.
@@ -193,6 +231,8 @@ async function run() {
                   url: job.url,
                   source: job.source,
                   description: job.rawContent,
+                  applicationStatus: inheritedState.applicationStatus,
+                  appliedAt: inheritedState.appliedAt,
                   scraperUrl: { connect: { id: target.id } },
                   categories: { connect: job.matchedCategories.map(name => ({ name })) },
                   workPreferences: { connect: job.matchedPreferences.map(name => ({ name })) }
