@@ -19,6 +19,7 @@ model Job {
   updatedAt         DateTime          @updatedAt
   expiredAt         DateTime? // Confirmed inactive by the source portal; retained for recovery
   analysis          JobAnalysis?
+  interviewPrep     InterviewPrep?
   applicationStatus ApplicationStatus @default(INBOX)
   appliedAt         DateTime?
 
@@ -104,4 +105,19 @@ model JobAnalysis {
   comparedCvHash      String? // Composite hash of active CV versions at analysis time
   workPreferencesHash String? // Hash of active work preferences at analysis time
   analyzedAt          DateTime   @default(now())
+}
+
+model InterviewPrep {
+  id                  String   @id @default(uuid())
+  jobId               String   @unique
+  job                 Job      @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  technicalQuestions  String[]
+  behavioralQuestions String[]
+  talkingPoints       String[]
+  questionsToAsk      String[]
+  redFlags            String[]
+  prepPriorities      String[]
+  descriptionHash     String // SHA-256 of the job description at prep time
+  comparedCvHash      String? // Composite hash of compared CV versions at prep time
+  preparedAt          DateTime @default(now())
 }

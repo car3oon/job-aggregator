@@ -47,11 +47,25 @@ type JobAnalysisResult = {
   recommendedCv: { id: string; label: string } | null;
 };
 
+type InterviewPrepResult = {
+  id: string;
+  technicalQuestions: string[];
+  behavioralQuestions: string[];
+  talkingPoints: string[];
+  questionsToAsk: string[];
+  redFlags: string[];
+  prepPriorities: string[];
+  descriptionHash: string;
+  comparedCvHash: string | null;
+  preparedAt: Date;
+};
+
 type JobWithRelations = Job & {
   categories: Category[];
   workPreferences: WorkPreference[];
   scraperUrl: ScraperUrl | null;
   analysis: JobAnalysisResult | null;
+  interviewPrep: InterviewPrepResult | null;
 };
 
 const ITEMS_PER_PAGE = 20;
@@ -224,6 +238,20 @@ async function Dashboard({
           recommendedCv: {
             select: { id: true, label: true },
           },
+        },
+      },
+      interviewPrep: {
+        select: {
+          id: true,
+          technicalQuestions: true,
+          behavioralQuestions: true,
+          talkingPoints: true,
+          questionsToAsk: true,
+          redFlags: true,
+          prepPriorities: true,
+          descriptionHash: true,
+          comparedCvHash: true,
+          preparedAt: true,
         },
       },
     }
@@ -544,7 +572,9 @@ async function JobList({
             now={now}
             currentComparedCvHash={currentComparedCvHash}
             currentWorkPreferencesHash={currentWorkPreferencesHash}
-            currentDescriptionHash={descriptionHashes.get(job.id) ?? null}
+            currentDescriptionHash={descriptionHashes.get(job.descriptionJobId ?? job.id) ?? null}
+            currentAnalysisDescriptionHash={descriptionHashes.get(job.analysisJobId ?? job.descriptionJobId ?? job.id) ?? null}
+            currentPrepDescriptionHash={descriptionHashes.get(job.prepJobId ?? job.descriptionJobId ?? job.id) ?? null}
           />
         ))}
       </div>
