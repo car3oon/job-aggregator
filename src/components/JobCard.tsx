@@ -20,13 +20,20 @@ import {
   DollarSign,
   Building2,
   Wifi,
+  GraduationCap,
+  ListOrdered,
+  MessageCircleQuestion,
+  CircleHelp,
+  TriangleAlert,
+  Lightbulb,
 } from "lucide-react";
-import type { GroupedJob, JobAnalysisSummary } from "@/lib/job-grouping";
+import type { GroupedJob, JobAnalysisSummary, InterviewPrepSummary } from "@/lib/job-grouping";
 import {
   updateGroupedJobStatus,
   type ApplicationStatus,
 } from "@/app/actions/job";
 import { analyzeJob } from "@/app/actions/jobAnalysisActions";
+import { generateInterviewPrep } from "@/app/actions/interviewPrepActions";
 import { cn } from "@/lib/utils";
 
 const STATUS_BTN_BASE =
@@ -331,6 +338,162 @@ function AiAnalysisSkeleton() {
   );
 }
 
+function PrepSection({
+  icon,
+  title,
+  items,
+  accentClass,
+}: {
+  icon: React.ReactNode;
+  title: string;
+  items: string[];
+  accentClass: string;
+}) {
+  return (
+    <div>
+      <div className="flex items-center gap-1.5 mb-1.5">
+        <span className={accentClass}>{icon}</span>
+        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+          {title}
+        </p>
+      </div>
+      {items.length > 0 ? (
+        <ol className="list-decimal list-inside space-y-1">
+          {items.map((item, i) => (
+            <li key={i} className="text-xs text-foreground/85 leading-relaxed">
+              {item}
+            </li>
+          ))}
+        </ol>
+      ) : (
+        <p className="text-xs text-muted-foreground italic">Not available</p>
+      )}
+    </div>
+  );
+}
+
+function InterviewPrepPanel({
+  prep,
+  isStale,
+  isPrepping,
+  onRegenerate,
+  onClose,
+}: {
+  prep: InterviewPrepSummary;
+  isStale: boolean;
+  isPrepping: boolean;
+  onRegenerate: () => void;
+  onClose: () => void;
+}) {
+  return (
+    <div className="mt-4 pt-4 border-t border-border/60 space-y-4">
+      {/* Header bar */}
+      <div className="flex items-center justify-between gap-2 flex-wrap pb-1">
+        <div className="flex items-center gap-2">
+          <div className="inline-flex items-center gap-1.5 text-xs font-semibold text-primary">
+            <GraduationCap className="w-3.5 h-3.5" />
+            <span>Interview Prep</span>
+          </div>
+          {isStale && (
+            <span className="text-[10px] text-amber-600 dark:text-amber-400 font-medium bg-amber-500/10 px-2 py-0.5 rounded-full border border-amber-500/20">
+              Job or CV data changed — re-generate available
+            </span>
+          )}
+        </div>
+
+        <div className="flex items-center gap-1.5">
+          <button
+            type="button"
+            onClick={onRegenerate}
+            disabled={isPrepping}
+            className={cn(PANEL_BTN_BASE, "px-2 font-medium disabled:opacity-50")}
+            title="Re-generate interview prep with current data"
+          >
+            <RefreshCw
+              className={cn("w-3 h-3", isPrepping && "animate-spin")}
+            />
+            <span>Re-generate</span>
+          </button>
+          <button
+            type="button"
+            onClick={onClose}
+            className={cn(PANEL_BTN_BASE, "px-1.5")}
+            title="Hide interview prep"
+          >
+            <ChevronUp className="w-3.5 h-3.5" />
+            <span>Hide</span>
+          </button>
+        </div>
+      </div>
+
+      <div className="space-y-3.5">
+        <PrepSection
+          icon={<Lightbulb className="w-3.5 h-3.5" />}
+          title="Prep Priorities"
+          items={prep.prepPriorities}
+          accentClass="text-amber-600 dark:text-amber-400"
+        />
+        <PrepSection
+          icon={<ListOrdered className="w-3.5 h-3.5" />}
+          title="Technical Questions"
+          items={prep.technicalQuestions}
+          accentClass="text-primary"
+        />
+        <PrepSection
+          icon={<MessageCircleQuestion className="w-3.5 h-3.5" />}
+          title="Behavioral Questions"
+          items={prep.behavioralQuestions}
+          accentClass="text-primary"
+        />
+        <PrepSection
+          icon={<GraduationCap className="w-3.5 h-3.5" />}
+          title="Talking Points (from your CV)"
+          items={prep.talkingPoints}
+          accentClass="text-emerald-600 dark:text-emerald-400"
+        />
+        <PrepSection
+          icon={<CircleHelp className="w-3.5 h-3.5" />}
+          title="Questions to Ask"
+          items={prep.questionsToAsk}
+          accentClass="text-primary"
+        />
+        <PrepSection
+          icon={<TriangleAlert className="w-3.5 h-3.5" />}
+          title="Red Flags / Clarifications"
+          items={prep.redFlags}
+          accentClass="text-amber-600 dark:text-amber-400"
+        />
+      </div>
+
+      <p className="text-[10px] text-muted-foreground/60">
+        Prepared{" "}
+        {new Intl.DateTimeFormat("en-GB", {
+          day: "numeric",
+          month: "short",
+          year: "numeric",
+          hour: "2-digit",
+          minute: "2-digit",
+          timeZone: "Europe/Warsaw",
+        }).format(prep.preparedAt)}
+      </p>
+    </div>
+  );
+}
+
+function InterviewPrepSkeleton() {
+  return (
+    <div className="mt-4 pt-4 border-t border-border/60 space-y-4 animate-pulse">
+      {[0, 1, 2, 3].map((i) => (
+        <div key={i} className="space-y-2">
+          <div className="h-3 bg-muted/50 rounded w-32" />
+          <div className="h-3 bg-muted/70 rounded w-full" />
+          <div className="h-3 bg-muted/60 rounded w-4/5" />
+        </div>
+      ))}
+    </div>
+  );
+}
+
 // ---------------------------------------------------------------------------
 // Main component
 // ---------------------------------------------------------------------------
@@ -346,12 +509,25 @@ export function shouldStartAnalysis(
   return analysis === null;
 }
 
+/**
+ * The header Prep button toggles an existing prep instead of re-generating it.
+ * A new prep only starts when the job has no prep yet; re-generating is explicit
+ * inside the panel.
+ */
+export function shouldStartPrep(
+  prep: InterviewPrepSummary | null,
+): boolean {
+  return prep === null;
+}
+
 export function JobCard({
   job,
   now,
   currentComparedCvHash,
   currentWorkPreferencesHash = null,
   currentDescriptionHash,
+  currentAnalysisDescriptionHash,
+  currentPrepDescriptionHash,
 }: {
   job: GroupedJob;
   now: number;
@@ -360,6 +536,8 @@ export function JobCard({
   currentComparedCvHash: string | null;
   currentWorkPreferencesHash?: string | null;
   currentDescriptionHash: string | null;
+  currentAnalysisDescriptionHash?: string | null;
+  currentPrepDescriptionHash?: string | null;
 }) {
   const [showVariants, setShowVariants] = useState(false);
   const [isPending, startTransition] = useTransition();
@@ -379,14 +557,37 @@ export function JobCard({
     useState<JobAnalysisSummary | null>(job.analysis);
   const [analysisError, setAnalysisError] = useState<string | null>(null);
 
+  // Interview prep state
+  const [isPrepping, setIsPrepping] = useState(false);
+  const [prepPanelOpen, setPrepPanelOpen] = useState(
+    job.interviewPrep !== null,
+  );
+  const [currentPrep, setCurrentPrep] =
+    useState<InterviewPrepSummary | null>(job.interviewPrep);
+  const [prepError, setPrepError] = useState<string | null>(null);
+
   const isNew = now - new Date(job.createdAt).getTime() < 14 * 60 * 60 * 1000;
   const hasMultipleSources = job.sources.length > 1;
+
+  const analysisDescriptionHash =
+    currentAnalysisDescriptionHash !== undefined
+      ? currentAnalysisDescriptionHash
+      : currentDescriptionHash;
+  const prepDescriptionHash =
+    currentPrepDescriptionHash !== undefined
+      ? currentPrepDescriptionHash
+      : currentDescriptionHash;
 
   const isStale =
     currentAnalysis !== null &&
     (currentAnalysis.comparedCvHash !== currentComparedCvHash ||
-      currentAnalysis.descriptionHash !== currentDescriptionHash ||
+      currentAnalysis.descriptionHash !== analysisDescriptionHash ||
       currentAnalysis.workPreferencesHash !== currentWorkPreferencesHash);
+
+  const isPrepStale =
+    currentPrep !== null &&
+    (currentPrep.comparedCvHash !== currentComparedCvHash ||
+      currentPrep.descriptionHash !== prepDescriptionHash);
 
   const appliedDateStr = appliedAt
     ? new Intl.DateTimeFormat("en-GB", {
@@ -419,7 +620,7 @@ export function JobCard({
 
     startTransition(async () => {
       try {
-        const res = await analyzeJob(job.id);
+        const res = await analyzeJob(job.analysisJobId ?? job.id);
         if (!res.ok) {
           setAnalysisError(res.error ?? "Analysis failed. Please try again.");
         } else if (res.analysis) {
@@ -448,6 +649,37 @@ export function JobCard({
         }
       } finally {
         setIsAnalyzing(false);
+      }
+    });
+  };
+
+  const handlePrep = () => {
+    setIsPrepping(true);
+    setPrepError(null);
+
+    startTransition(async () => {
+      try {
+        const res = await generateInterviewPrep(job.prepJobId ?? job.id);
+        if (!res.ok) {
+          setPrepError(res.error ?? "Prep generation failed. Please try again.");
+        } else if (res.prep) {
+          setCurrentPrep({
+            id: res.prep.id,
+            technicalQuestions: res.prep.technicalQuestions,
+            behavioralQuestions: res.prep.behavioralQuestions,
+            talkingPoints: res.prep.talkingPoints,
+            questionsToAsk: res.prep.questionsToAsk,
+            redFlags: res.prep.redFlags,
+            prepPriorities: res.prep.prepPriorities,
+            descriptionHash: res.prep.descriptionHash,
+            comparedCvHash: res.prep.comparedCvHash,
+            preparedAt: res.prep.preparedAt,
+          });
+          setPrepPanelOpen(true);
+          setPrepError(null);
+        }
+      } finally {
+        setIsPrepping(false);
       }
     });
   };
@@ -632,6 +864,58 @@ export function JobCard({
                 </button>
 
                 <div className="h-3.5 w-px bg-border/60 mx-0.5 hidden sm:block" />
+
+                {/* Interview Prep Action */}
+                <button
+                  type="button"
+                  disabled={isPending || isPrepping}
+                  onClick={() => {
+                    if (shouldStartPrep(currentPrep)) {
+                      handlePrep();
+                    } else {
+                      setPrepPanelOpen((v) => !v);
+                    }
+                  }}
+                  className={cn(
+                    "inline-flex items-center gap-1 px-2.5 py-1 text-xs font-medium rounded-md border transition-all disabled:opacity-50 cursor-pointer shadow-xs",
+                    isPrepping
+                      ? "border-violet-500/40 bg-violet-500/10 text-violet-600 dark:text-violet-400"
+                      : prepPanelOpen && currentPrep !== null
+                      ? "border-violet-500/40 bg-violet-500/15 text-violet-600 dark:text-violet-400"
+                      : currentPrep !== null
+                      ? "border-violet-500/25 bg-violet-500/5 text-violet-600 dark:text-violet-400 hover:bg-violet-500/15"
+                      : "border-violet-500/30 bg-violet-500/5 text-violet-600 dark:text-violet-400 hover:bg-violet-500/10"
+                  )}
+                  title={
+                    currentPrep
+                      ? prepPanelOpen
+                        ? "Hide Interview Prep"
+                        : "Show Interview Prep"
+                      : "Generate interview prep with AI"
+                  }
+                >
+                  {isPrepping ? (
+                    <>
+                      <RefreshCw className="w-3 h-3 animate-spin" />
+                      <span>Preparing…</span>
+                    </>
+                  ) : currentPrep ? (
+                    <>
+                      <GraduationCap className="w-3 h-3" />
+                      <span>Prep</span>
+                      {prepPanelOpen ? (
+                        <ChevronUp className="w-3 h-3 opacity-70" />
+                      ) : (
+                        <ChevronDown className="w-3 h-3 opacity-70" />
+                      )}
+                    </>
+                  ) : (
+                    <>
+                      <GraduationCap className="w-3 h-3" />
+                      <span>Prep</span>
+                    </>
+                  )}
+                </button>
               </>
             )}
 
@@ -719,6 +1003,33 @@ export function JobCard({
               isAnalyzing={isAnalyzing}
               onReanalyze={handleAnalyze}
               onClose={() => setAnalysisPanelOpen(false)}
+            />
+          )}
+        </>
+      )}
+
+      {/* Interview Prep Drawer */}
+      {job.hasDescription && (
+        <>
+          {/* Prep error message */}
+          {prepError && (
+            <div className="mt-3 flex items-start gap-2 text-xs text-destructive bg-destructive/8 border border-destructive/20 rounded-md px-3 py-2">
+              <AlertCircle className="w-3.5 h-3.5 shrink-0 mt-0.5" />
+              <span>{prepError}</span>
+            </div>
+          )}
+
+          {/* In-progress prep skeleton */}
+          {isPrepping && <InterviewPrepSkeleton />}
+
+          {/* Prep results panel */}
+          {!isPrepping && prepPanelOpen && currentPrep !== null && (
+            <InterviewPrepPanel
+              prep={currentPrep}
+              isStale={isPrepStale}
+              isPrepping={isPrepping}
+              onRegenerate={handlePrep}
+              onClose={() => setPrepPanelOpen(false)}
             />
           )}
         </>

@@ -80,6 +80,7 @@ describe("CV Library alphabetical sorting and hashing", () => {
         "next/cache": { revalidatePath: () => {} },
         zod: require("zod"),
         "@/lib/auth": { verifyAuth: async () => {} },
+        "@/lib/ai-error": { friendlyAiError: (e: unknown, fb: string) => `${fb}: ${e instanceof Error ? e.message : String(e)}` },
         "@/lib/cv-parser": {
           parseCvFile: async () => ({ extractedText: "", contentHash: "", wordCount: 0 }),
           countWords: (text: string) => text.trim().split(/\s+/).length,
@@ -126,6 +127,7 @@ describe("CV Library alphabetical sorting and hashing", () => {
       {
         "next/cache": { revalidatePath: () => {} },
         "@/lib/auth": { verifyAuth: async () => {} },
+        "@/lib/ai-error": { friendlyAiError: (e: unknown, fb: string) => `${fb}: ${e instanceof Error ? e.message : String(e)}` },
         "@/lib/cv-parser": {
           parseCvFile: async () => ({
             extractedText: "Parsed CV content",
@@ -207,10 +209,10 @@ describe("CV Library alphabetical sorting and hashing", () => {
         "next/cache": { revalidatePath: () => {} },
         zod: require("zod"),
         "@/lib/auth": { verifyAuth: async () => {} },
+        "@/lib/ai-error": { friendlyAiError: (e: unknown, fb: string) => `${fb}: ${e instanceof Error ? e.message : String(e)}` },
         "@/lib/cv-parser": { sha256: (s: string) => s, computeComparedCvHash: () => "hash" },
         "@/lib/cv-hash": { computeWorkPreferencesHash: () => "pref-hash" },
-        ai: { generateObject: async () => ({ object: {} }) },
-        "@ai-sdk/google": { createGoogleGenerativeAI: () => () => ({}) },
+        "@/lib/ai-model-fallback": { generateObjectWithFallback: async () => ({ object: {}, modelUsed: "test" }) },
         "@/lib/prisma": {
           prisma: {
             job: {
@@ -237,11 +239,12 @@ describe("CV Library alphabetical sorting and hashing", () => {
         "next/cache": { revalidatePath: () => {} },
         zod: require("zod"),
         "@/lib/auth": { verifyAuth: async () => {} },
+        "@/lib/ai-error": { friendlyAiError: (e: unknown, fb: string) => `${fb}: ${e instanceof Error ? e.message : String(e)}` },
         "@/lib/cv-parser": { sha256: (s: string) => `hash(${s})`, computeComparedCvHash: () => "comp-hash" },
         "@/lib/cv-hash": { computeWorkPreferencesHash: () => "pref-hash" },
-        ai: {
-          generateObject: async (options: { model: { modelName: string } }) => {
-            capturedModel = options.model.modelName;
+        "@/lib/ai-model-fallback": {
+          generateObjectWithFallback: async (options: { modelName: string }) => {
+            capturedModel = options.modelName;
             return {
               object: {
                 summary: "Great React role",
@@ -256,13 +259,8 @@ describe("CV Library alphabetical sorting and hashing", () => {
                 cvMatchStrengths: ["React expertise"],
                 cvMatchGaps: [],
               },
+              modelUsed: options.modelName,
             };
-          },
-        },
-        "@ai-sdk/google": {
-          createGoogleGenerativeAI: (config: { apiKey: string }) => {
-            assert.equal(config.apiKey, "test-key");
-            return (modelName: string) => ({ modelName });
           },
         },
         "@/lib/prisma": {
@@ -319,12 +317,13 @@ describe("CV Library alphabetical sorting and hashing", () => {
         "next/cache": { revalidatePath: () => {} },
         zod: require("zod"),
         "@/lib/auth": { verifyAuth: async () => {} },
+        "@/lib/ai-error": { friendlyAiError: (e: unknown, fb: string) => `${fb}: ${e instanceof Error ? e.message : String(e)}` },
         "@/lib/cv-parser": { sha256: (s: string) => `hash(${s})`, computeComparedCvHash: () => null },
         "@/lib/cv-hash": {
           computeWorkPreferencesHash: () => "pref-hash",
         },
-        ai: {
-          generateObject: async (options: { prompt: string; system: string }) => {
+        "@/lib/ai-model-fallback": {
+          generateObjectWithFallback: async (options: { prompt: string; system: string }) => {
             capturedPrompt = options.prompt;
             capturedSystem = options.system;
             return {
@@ -342,10 +341,10 @@ describe("CV Library alphabetical sorting and hashing", () => {
                 cvMatchStrengths: [],
                 cvMatchGaps: [],
               },
+              modelUsed: "test",
             };
           },
         },
-        "@ai-sdk/google": { createGoogleGenerativeAI: () => () => ({}) },
         "@/lib/prisma": {
           prisma: {
             job: {

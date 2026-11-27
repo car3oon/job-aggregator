@@ -14,6 +14,7 @@ A personal tech job offer aggregator, deduplicator, and management dashboard wit
   - Scraper run details and platform statistics.
   - Interactive job cards with optimistic updates.
 - **AI Job Analysis:** Per-offer structured analysis with **Google Gemini** — role summary, required skills, seniority, location, work mode, and compensation. Results are cached in the database and rendered in a collapsible panel on each job card.
+- **AI Interview Prep:** Per-offer interview preparation guide generated with **Google Gemini** — ranked study priorities, technical and behavioral questions, CV-backed talking points, questions to ask the interviewer, and potential red flags. Cached in the database and marked stale when the job description or active CV set changes.
 - **CV Matching:** Recommends the best CV version for an offer, including reasoning, strengths, and gaps. When critical requirements are missing, an alert panel highlights the gaps and flags missing skills directly on the required skills chips. Results are marked stale automatically when the job description or the active CV set changes; re-analysis is always an explicit action.
 - **CV Library:** Upload and manage up to 10 CV versions (PDF or DOCX, 5 MB max each) from `/settings`. Files are parsed server-side, hashed with SHA-256, and only metadata (label, filename, word count) is sent to the browser.
 - **Dynamic Settings:** Manage job categories, work preferences, scraper target URLs, AI model settings, and the CV library directly from `/settings`.
@@ -107,16 +108,17 @@ pnpm exec tsx src/scripts/scraper/run.ts
 
 The GitHub Actions schedule explicitly selects `justjoin.it`, `nofluffjobs.com`, and `pracuj.pl`; run Theprotocol.it locally with `pnpm scrape:theprotocol`. Both environments should use the same database connection if they are expected to update the same dashboard data.
 
-## AI Job Analysis & CV Library
+## AI Job Analysis, Interview Prep & CV Library
 
-The dashboard can analyze any job that has a stored description. Analysis uses the same Google Gemini key as the assistant (`GOOGLE_GENERATIVE_AI_API_KEY` or `GEMINI_API_KEY`) and the same model setting (`GEMINI_MODEL` or `AI_MODEL`, default `gemini-flash-lite-latest`).
+The dashboard can analyze any job and generate interview preparation notes for any offer that has a stored description. Both features use the same Google Gemini key as the assistant (`GOOGLE_GENERATIVE_AI_API_KEY` or `GEMINI_API_KEY`) and the same model setting (`GEMINI_MODEL` or `AI_MODEL`, default `gemini-flash-lite-latest`), with automatic fallback across alternative Gemini flash models (`gemini-flash-lite-latest`, `gemini-2.5-flash`, `gemini-2.5-flash-lite`) on transient `503`/`429` overload errors.
 
-1. Open **Settings → CV Library** and upload up to 10 CV versions as PDF or DOCX (5 MB max each). Text extraction happens on the server; labels can be renamed, files replaced, and versions deleted. Analysis works without CVs, but CV matching is only available when at least one version exists.
+1. Open **Settings → CV Library** and upload up to 10 CV versions as PDF or DOCX (5 MB max each). Text extraction happens on the server; labels can be renamed, files replaced, and versions deleted. Analysis and interview prep work without CVs, while CV matching and CV-backed talking points are populated when at least one version exists.
 2. On the dashboard, click **Analyze** on a job card. The result appears in a collapsible panel with the summary, required skills, seniority, location, work mode, compensation, and — when CVs are available — the recommended CV with reasoning, strengths, and gaps. If no CV satisfies the requirements, a dedicated alert panel details the missing qualifications, and missing skills are highlighted with a `✕` badge on the required skills list.
+3. Click **Prep** on a job card to generate a structured interview preparation drawer containing prep priorities, technical questions, behavioral questions, CV-backed talking points, questions to ask, and red flags.
 
-The header **AI Analysis** button only expands or collapses the panel; re-running the model is an explicit **Re-analyze** action inside the panel.
+The header **AI Analysis** and **Prep** buttons only expand or collapse their respective panels once cached; re-running the model is always an explicit **Re-analyze** or **Re-generate** action inside the panel.
 
-Cached results are shown as stale ("Job or CV data changed — re-analyze available") when the stored job description hash or the composite hash of the active CV versions no longer matches the values captured during analysis. Replacing or deleting a CV therefore invalidates previous matches. Re-running updates the cached analysis for that job in place.
+Cached results are shown as stale ("Job or CV data changed — re-analyze available" / "re-generate available") when the stored job description hash or the composite hash of the active CV versions no longer matches the values captured at generation time. Replacing or deleting a CV therefore invalidates previous matches and talking points. Re-running updates the cached record for that job in place.
 
 Uploads use a server action body limit of 6 MB (`next.config.ts`), so no extra configuration is required beyond the default setup.
 

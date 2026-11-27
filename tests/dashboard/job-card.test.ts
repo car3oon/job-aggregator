@@ -13,6 +13,9 @@ const mockJobActions = { updateGroupedJobStatus: async () => ({ success: true })
 const mockAnalysisActions = {
   analyzeJob: async () => ({ ok: false, error: "mock" }),
 };
+const mockPrepActions = {
+  generateInterviewPrep: async () => ({ ok: false, error: "mock" }),
+};
 const baseModules = {
   react: {
     useState: (initial: unknown) => [typeof initial === "boolean" ? true : initial, () => {}],
@@ -20,6 +23,7 @@ const baseModules = {
   },
   "@/app/actions/job": mockJobActions,
   "@/app/actions/jobAnalysisActions": mockAnalysisActions,
+  "@/app/actions/interviewPrepActions": mockPrepActions,
   "@/lib/utils": {
     cn: (...args: unknown[]) =>
       args
@@ -34,6 +38,7 @@ const baseModules = {
 const baseJob = {
   hasDescription: false as const,
   analysis: null,
+  interviewPrep: null,
 };
 
 test("job cards render identical dates and New badges across time zones and hydration delays", () => {
@@ -130,6 +135,7 @@ test("job cards mark analysis stale when the description changes", () => {
     id: "primary", title: "Fullstack Engineer", company: "Acme", url: "https://example.test/job",
     createdAt, updatedAt: createdAt, categories: [], workPreferences: [], sources: [],
     relatedVariants: [], applicationStatus: "INBOX", appliedAt: null, hasDescription: true,
+    interviewPrep: null,
     analysis: {
       id: "analysis-1",
       summary: "A role summary",
@@ -194,6 +200,7 @@ test("job cards mark analysis stale when active work preferences change", () => 
     applicationStatus: "INBOX",
     appliedAt: null,
     hasDescription: true,
+    interviewPrep: null,
     analysis: {
       id: "analysis-1",
       summary: "A role summary",
@@ -291,6 +298,7 @@ test("job cards display gap feedback and missing skill badges when no CV matches
     applicationStatus: "INBOX",
     appliedAt: null,
     hasDescription: true,
+    interviewPrep: null,
     analysis: {
       id: "analysis-german",
       summary: "Frontend role requiring German language.",

@@ -361,4 +361,76 @@ describe("Job Grouping & Deduplication", () => {
     assert.ok(sourceNames.includes("Pracuj.pl"));
     assert.equal(grouped[0].workPreferences.length, 2);
   });
+
+  test("grouped job falls back to sibling analysis/prep when primary lacks them", () => {
+    const mkAnalysis = () => ({
+      id: "analysis-1",
+      summary: "Role summary",
+      requiredSkills: ["React"],
+      seniority: "Senior",
+      location: null,
+      workMode: null,
+      compensation: null,
+      workPreferenceDiff: null,
+      recommendedCvId: null,
+      recommendedCvLabel: null,
+      cvMatchReason: null,
+      cvMatchStrengths: [],
+      cvMatchGaps: [],
+      descriptionHash: "abc",
+      comparedCvHash: null,
+      workPreferencesHash: null,
+      analyzedAt: new Date("2026-11-20T10:00:00Z"),
+    });
+    const mkPrep = () => ({
+      id: "prep-1",
+      technicalQuestions: ["Q1"],
+      behavioralQuestions: [],
+      talkingPoints: [],
+      questionsToAsk: [],
+      redFlags: [],
+      prepPriorities: [],
+      descriptionHash: "abc",
+      comparedCvHash: null,
+      preparedAt: new Date("2026-11-20T10:00:00Z"),
+    });
+
+    const jobs = [
+      {
+        id: "older",
+        title: "Senior React Developer",
+        company: "Acme",
+        url: "https://justjoin.it/offer/1",
+        source: "JustJoinIT",
+        createdAt: new Date("2026-11-20T10:00:00Z"),
+        updatedAt: new Date("2026-11-20T10:00:00Z"),
+        description: "React role",
+        analysis: mkAnalysis(),
+        interviewPrep: mkPrep(),
+      },
+      {
+        id: "newer",
+        title: "Senior React Developer",
+        company: "Acme",
+        url: "https://pracuj.pl/oferta/123",
+        source: "Pracuj.pl",
+        createdAt: new Date("2026-11-22T10:00:00Z"),
+        updatedAt: new Date("2026-11-22T10:00:00Z"),
+        description: "React role",
+        analysis: null,
+        interviewPrep: null,
+      },
+    ];
+
+    const grouped = groupJobs(jobs);
+    assert.equal(grouped.length, 1);
+    assert.equal(grouped[0].id, "newer"); // primary is the newest
+    assert.ok(grouped[0].analysis, "analysis should fall back to the older sibling");
+    assert.ok(grouped[0].interviewPrep, "interviewPrep should fall back to the older sibling");
+    assert.equal(grouped[0].analysis?.id, "analysis-1");
+    assert.equal(grouped[0].interviewPrep?.id, "prep-1");
+    assert.equal(grouped[0].analysisJobId, "older");
+    assert.equal(grouped[0].prepJobId, "older");
+    assert.equal(grouped[0].descriptionJobId, "newer");
+  });
 });

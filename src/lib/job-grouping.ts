@@ -36,6 +36,19 @@ export interface JobAnalysisSummary {
   analyzedAt: Date;
 }
 
+export interface InterviewPrepSummary {
+  id: string;
+  technicalQuestions: string[];
+  behavioralQuestions: string[];
+  talkingPoints: string[];
+  questionsToAsk: string[];
+  redFlags: string[];
+  prepPriorities: string[];
+  descriptionHash: string;
+  comparedCvHash: string | null;
+  preparedAt: Date;
+}
+
 export interface MinimalJob {
   id: string;
   title: string;
@@ -50,6 +63,7 @@ export interface MinimalJob {
   applicationStatus?: "INBOX" | "SAVED" | "APPLIED" | "REJECTED";
   appliedAt?: Date | null;
   analysis?: JobAnalysisSummary | null;
+  interviewPrep?: InterviewPrepSummary | null;
 }
 
 export interface GroupedJob {
@@ -65,10 +79,18 @@ export interface GroupedJob {
   relatedVariants: RelatedJobVariant[];
   applicationStatus: "INBOX" | "SAVED" | "APPLIED" | "REJECTED";
   appliedAt: Date | null;
-  /** True when the primary job has a non-empty stored description. */
+  /** True when the primary job or a sibling has a non-empty stored description. */
   hasDescription: boolean;
+  /** ID of the Job row that owns the description for this group. */
+  descriptionJobId?: string;
+  /** ID of the Job row that owns the analysis (or description if unanalyzed). */
+  analysisJobId?: string;
+  /** ID of the Job row that owns the interview prep (or description if unprepared). */
+  prepJobId?: string;
   /** Cached AI analysis for the primary job, or null if none exists yet. */
   analysis: JobAnalysisSummary | null;
+  /** Cached interview prep for the primary job, or null if none exists yet. */
+  interviewPrep: InterviewPrepSummary | null;
 }
 
 export function normalizeCompany(company?: string | null): string {
@@ -325,6 +347,16 @@ export function groupJobs<T extends MinimalJob>(jobs: T[]): GroupedJob[] {
     const { applicationStatus, appliedAt } =
       resolveGroupApplicationState(items);
 
+    // Analysis and interview prep are 1:1 on individual Job rows, but a group
+    // may span multiple portal listings. Use the primary's data when present,
+    // otherwise fall back to any sibling that has it (e.g. the Saved tab
+    // includes expired listings that can become the newest primary).
+    const analysisSource = items.find((item) => item.analysis) ?? primary;
+    const prepSource = items.find((item) => item.interviewPrep) ?? primary;
+    const descriptionSource = items.find(
+      (item) => item.description && item.description.trim().length > 0,
+    ) ?? primary;
+
     levelAJobs.push({
       id: primary.id,
       title: primary.title,
@@ -339,27 +371,44 @@ export function groupJobs<T extends MinimalJob>(jobs: T[]): GroupedJob[] {
       applicationStatus,
       appliedAt,
       hasDescription: Boolean(
-        primary.description && primary.description.trim().length > 0,
+        descriptionSource.description && descriptionSource.description.trim().length > 0,
       ),
-      analysis: primary.analysis
+      descriptionJobId: descriptionSource.id,
+      analysisJobId: analysisSource.analysis ? analysisSource.id : descriptionSource.id,
+      prepJobId: prepSource.interviewPrep ? prepSource.id : descriptionSource.id,
+      analysis: analysisSource.analysis
         ? {
-            id: primary.analysis.id,
-            summary: primary.analysis.summary,
-            requiredSkills: primary.analysis.requiredSkills,
-            seniority: primary.analysis.seniority,
-            location: primary.analysis.location,
-            workMode: primary.analysis.workMode,
-            compensation: primary.analysis.compensation,
-            workPreferenceDiff: primary.analysis.workPreferenceDiff,
-            recommendedCvId: primary.analysis.recommendedCvId,
-            recommendedCvLabel: primary.analysis.recommendedCvLabel ?? null,
-            cvMatchReason: primary.analysis.cvMatchReason,
-            cvMatchStrengths: primary.analysis.cvMatchStrengths,
-            cvMatchGaps: primary.analysis.cvMatchGaps,
-            descriptionHash: primary.analysis.descriptionHash,
-            comparedCvHash: primary.analysis.comparedCvHash,
-            workPreferencesHash: primary.analysis.workPreferencesHash,
-            analyzedAt: new Date(primary.analysis.analyzedAt),
+            id: analysisSource.analysis.id,
+            summary: analysisSource.analysis.summary,
+            requiredSkills: analysisSource.analysis.requiredSkills,
+            seniority: analysisSource.analysis.seniority,
+            location: analysisSource.analysis.location,
+            workMode: analysisSource.analysis.workMode,
+            compensation: analysisSource.analysis.compensation,
+            workPreferenceDiff: analysisSource.analysis.workPreferenceDiff,
+            recommendedCvId: analysisSource.analysis.recommendedCvId,
+            recommendedCvLabel: analysisSource.analysis.recommendedCvLabel ?? null,
+            cvMatchReason: analysisSource.analysis.cvMatchReason,
+            cvMatchStrengths: analysisSource.analysis.cvMatchStrengths,
+            cvMatchGaps: analysisSource.analysis.cvMatchGaps,
+            descriptionHash: analysisSource.analysis.descriptionHash,
+            comparedCvHash: analysisSource.analysis.comparedCvHash,
+            workPreferencesHash: analysisSource.analysis.workPreferencesHash,
+            analyzedAt: new Date(analysisSource.analysis.analyzedAt),
+          }
+        : null,
+      interviewPrep: prepSource.interviewPrep
+        ? {
+            id: prepSource.interviewPrep.id,
+            technicalQuestions: prepSource.interviewPrep.technicalQuestions,
+            behavioralQuestions: prepSource.interviewPrep.behavioralQuestions,
+            talkingPoints: prepSource.interviewPrep.talkingPoints,
+            questionsToAsk: prepSource.interviewPrep.questionsToAsk,
+            redFlags: prepSource.interviewPrep.redFlags,
+            prepPriorities: prepSource.interviewPrep.prepPriorities,
+            descriptionHash: prepSource.interviewPrep.descriptionHash,
+            comparedCvHash: prepSource.interviewPrep.comparedCvHash,
+            preparedAt: new Date(prepSource.interviewPrep.preparedAt),
           }
         : null,
     });
