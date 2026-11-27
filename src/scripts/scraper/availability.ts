@@ -3,7 +3,7 @@ import type { ScraperAdapter } from "./types";
 type SavedJob = { id: string; url: string; updatedAt: Date; expiredAt: Date | null };
 type JobStore = {
   findMany(args: {
-    where: { source: string };
+    where: { source: string; scraperUrlId: { not: null } };
     select: { id: true; url: true; updatedAt: true; expiredAt: true };
   }): Promise<SavedJob[]>;
   updateMany(args: {
@@ -17,7 +17,7 @@ export async function refreshJobAvailability(adapter: ScraperAdapter, store: Job
   const result = { checked: 0, expired: 0, restored: 0, unknown: 0 };
   if (!getStatus) return result;
   const savedJobs = await store.findMany({
-    where: { source: adapter.sourceName },
+    where: { source: adapter.sourceName, scraperUrlId: { not: null } },
     select: { id: true, url: true, updatedAt: true, expiredAt: true },
   });
 

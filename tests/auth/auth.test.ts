@@ -93,6 +93,7 @@ describe("Authentication and access control", () => {
       "@/lib/grouped-job-status": {
         updateGroupedJobStatus: async () => ({ success: true, updatedCount: 1 }),
       },
+      "@/lib/manual-job": { validateManualJobInput: () => ({ ok: false, error: "invalid" }) },
       "@/lib/prisma": { prisma },
       "next/cache": { revalidatePath: failBoundary },
       "@/scripts/scraper/engine": {},
@@ -102,7 +103,10 @@ describe("Authentication and access control", () => {
       scraperUrl: { addScraperUrl: ["https://justjoin.it"], updateScraperUrl: ["id", "https://justjoin.it", "Test"], deleteScraperUrl: ["id"], toggleScraperUrl: ["id", true] },
       workPreference: { addWorkPreference: ["Remote", "remote"], updateWorkPreference: ["id", "Remote", "remote", true], deleteWorkPreference: ["id"], toggleWorkPreference: ["id", true] },
       scraper: { triggerScraperAction: [] },
-      job: { updateJobApplicationStatus: ["id", "APPLIED"] },
+      job: {
+        updateJobApplicationStatus: ["id", "APPLIED"],
+        addManualJob: [{ title: "Dev", url: "https://linkedin.com/jobs/1", description: "Desc", categoryIds: [], workPreferenceIds: [] }],
+      },
     };
     for (const [file, calls] of Object.entries(cases)) {
       const actions = loadSource(`src/app/actions/${file}.ts`, common) as Record<string, (...args: unknown[]) => Promise<unknown>>;
@@ -147,8 +151,10 @@ describe("Authentication and access control", () => {
       },
       "@/app/actions/cvActions": { listCvVersions: async () => [] },
       "@/components/CvLibraryTab": { CvLibraryTab: () => null },
+      "@/components/AddJobForm": { AddJobForm: () => null },
     };
     const home = (loadSource("src/app/page.tsx", common) as typeof import("../../src/app/page")).default;
+    const newJob = (loadSource("src/app/jobs/new/page.tsx", common) as typeof import("../../src/app/jobs/new/page")).default;
     const settings = (loadSource("src/app/settings/page.tsx", common) as typeof import("../../src/app/settings/page")).default;
     const settingsLayout = (loadSource("src/app/settings/layout.tsx", common) as typeof import("../../src/app/settings/layout")).default;
     const categoriesSettings = (loadSource("src/app/settings/categories/page.tsx", common) as typeof import("../../src/app/settings/categories/page")).default;
@@ -173,9 +179,11 @@ describe("Authentication and access control", () => {
       await assert.rejects(scraperSettings(), /redirect:\/login/);
       await assert.rejects(assistantSettings(), /redirect:\/login/);
       await assert.rejects(cvSettings(), /redirect:\/login/);
+      await assert.rejects(newJob(), /redirect:\/login/);
       await assert.rejects(history(), /redirect:\/login/);
       assert.equal(proxy(request(invalid, "/settings")), "redirected");
       assert.equal(proxy(request(invalid, "/settings/categories")), "redirected");
+      assert.equal(proxy(request(invalid, "/jobs/new")), "redirected");
     }
     assert.equal(reads, 0);
     context.setCookie(valid);

@@ -191,6 +191,12 @@ async function run() {
               existing = pracujCandidates.find(candidate => getPracujOfferId(candidate.url) === pracujOfferId) ?? null;
             }
 
+            // Preserve manually added offers (scraperUrlId === null) so scraped
+            // runs never overwrite or delete user-curated descriptions.
+            if (existing && existing.scraperUrlId === null) {
+              continue;
+            }
+
             if (job.matchedCategories.length === 0) {
               if (existing) {
                 // Job no longer matches any category, remove it to keep DB clean
