@@ -107,7 +107,11 @@ describe("Saved offer availability", () => {
       },
     };
     const result = await refreshJobAvailability(adapter, {
-      findMany: async ({ where }) => { assert.equal(where.source, "NoFluffJobs"); return jobs; },
+      findMany: async ({ where }) => {
+        assert.equal(where.source, "NoFluffJobs");
+        assert.equal(where.scraperUrlId.not, null);
+        return jobs;
+      },
       updateMany: async ({ where, data }) => {
         const original = jobs.find(job => job.id === where.id)!;
         assert.equal(where.url, original.url);
